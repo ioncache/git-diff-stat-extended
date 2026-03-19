@@ -31,6 +31,7 @@ If reconciliation fails, `gdsx` prints diagnostics and exits non-zero.
   - [Development](#development)
   - [Release checklist](#release-checklist)
   - [Known limitations](#known-limitations)
+  - [TODO](#todo)
   - [License](#license)
 
 ## Motivation
@@ -158,6 +159,8 @@ npm install
 npm test
 ```
 
+Tests run with Vitest in BDD style and use shared setup via `test/setup.js` configured in `vitest.config.js`.
+
 Tests currently cover:
 
 - category classification
@@ -199,6 +202,11 @@ Tests currently cover:
 - Comment classification is parser-backed for JS/TS-family files only.
 - Non-JS/TS files are categorized as implementation unless they match test rules.
 - For files with syntax parse failures, comment classification for that side may fall back to implementation.
+
+## TODO
+
+- Define and document include/exclude semantics for rename/copy changes (old path, new path, or either).
+- Add tests for rename include/exclude edge cases once semantics are finalized.
 
 ## License
 

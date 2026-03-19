@@ -1,12 +1,80 @@
 #!/usr/bin/env node
 
-const { spawnSync } = require('child_process');
-const yargs = require('yargs/yargs');
-const { hideBin } = require('yargs/helpers');
-const pc = require('picocolors');
-const Table = require('cli-table3');
-const { generateStats } = require('./gdsx-lib');
+import { spawnSync } from 'node:child_process';
+import yargs from 'yargs/yargs';
+import { hideBin } from 'yargs/helpers';
+import pc from 'picocolors';
+import Table from 'cli-table3';
+import { generateStats } from './gdsx-lib.js';
 
+/**
+ * @typedef {Object} CliTotals
+ * @property {number} filesChanged - Number of changed files.
+ * @property {number} insertions - Number of inserted lines.
+ * @property {number} deletions - Number of deleted lines.
+ */
+
+/**
+ * @typedef {Object} CliLineCounts
+ * @property {number} insertions - Number of inserted lines.
+ * @property {number} deletions - Number of deleted lines.
+ */
+
+/**
+ * @typedef {Object} CliCategories
+ * @property {CliLineCounts} implementation - Implementation totals.
+ * @property {CliLineCounts} tests - Test totals.
+ * @property {CliLineCounts} comments - Comment totals.
+ */
+
+/**
+ * @typedef {Object} CliReconciliation
+ * @property {boolean} pass - Whether computed totals match git totals.
+ * @property {CliLineCounts} expected - Expected totals from git shortstat.
+ * @property {CliLineCounts} computed - Computed totals from category rollup.
+ */
+
+/**
+ * @typedef {Object} CliFilters
+ * @property {string[]} include - Include patterns.
+ * @property {string[]} exclude - Exclude patterns.
+ */
+
+/**
+ * @typedef {Object} CliSelectedFile
+ * @property {string} status - Git raw diff status code.
+ * @property {string|null} oldPath - Source path.
+ * @property {string|null} newPath - Destination path.
+ * @property {string} path - Primary display path.
+ */
+
+/**
+ * @typedef {Object} CliReport
+ * @property {string} shortstatLine - Human-readable shortstat line.
+ * @property {CliTotals} total - Authoritative totals.
+ * @property {CliCategories} categories - Category totals.
+ * @property {CliReconciliation} reconciliation - Reconciliation details.
+ * @property {string} range - Effective range string.
+ * @property {CliFilters} filters - Applied filters.
+ * @property {CliSelectedFile[]} selectedFiles - Selected files.
+ */
+
+/**
+ * @typedef {Object} CliArgv
+ * @property {string} [base] - Base ref used with head.
+ * @property {string} [head] - Head ref used with base.
+ * @property {string} [range] - Explicit git revset.
+ * @property {string[]} [include] - Include glob patterns.
+ * @property {string[]} [exclude] - Exclude glob patterns.
+ * @property {boolean} json - Whether to emit JSON output.
+ * @property {boolean} verbose - Whether to emit extra diagnostics.
+ */
+
+/**
+ * Reads git's color.ui configuration value.
+ *
+ * @returns {'always'|'never'|string|null} Git color setting or null when unavailable.
+ */
 function readGitColorUiSetting() {
   const result = spawnSync('git', ['config', '--get', 'color.ui'], {
     encoding: 'utf8',
@@ -20,6 +88,11 @@ function readGitColorUiSetting() {
   return value || null;
 }
 
+/**
+ * Resolves terminal color behavior from environment variables and git config.
+ *
+ * @returns {ReturnType<typeof pc.createColors>} Color helpers for output formatting.
+ */
 function colorsForOutput() {
   if (process.env.NO_COLOR !== undefined) {
     return pc.createColors(false);
@@ -43,18 +116,43 @@ function colorsForOutput() {
 
 const colors = colorsForOutput();
 
+/**
+ * Formats signed insertion and deletion values with colors.
+ *
+ * @param {number} insertions - Insertion count.
+ * @param {number} deletions - Deletion count.
+ * @returns {string} Colorized signed counts.
+ */
 function fmtSigned(insertions, deletions) {
   return `${colors.green(`+${insertions}`)} ${colors.red(`-${deletions}`)}`;
 }
 
+/**
+ * Formats an insertion value with the insert color.
+ *
+ * @param {number} value - Insertion count.
+ * @returns {string} Colorized insertion value.
+ */
 function fmtInsertion(value) {
   return colors.green(`+${value}`);
 }
 
+/**
+ * Formats a deletion value with the delete color.
+ *
+ * @param {number} value - Deletion count.
+ * @returns {string} Colorized deletion value.
+ */
 function fmtDeletion(value) {
   return colors.red(`-${value}`);
 }
 
+/**
+ * Formats a net delta with positive and negative color styling.
+ *
+ * @param {number} value - Net value to render.
+ * @returns {string} Colorized net value.
+ */
 function fmtNet(value) {
   if (value > 0) {
     return colors.green(`+${value}`);
@@ -65,6 +163,12 @@ function fmtNet(value) {
   return `${value}`;
 }
 
+/**
+ * Renders a git shortstat-style summary line.
+ *
+ * @param {CliTotals} total - Totals to render.
+ * @returns {string} Colorized shortstat summary.
+ */
 function renderShortstat(total) {
   const filesWord = total.filesChanged === 1 ? 'file' : 'files';
   const insertionsWord = total.insertions === 1 ? 'insertion' : 'insertions';
@@ -77,6 +181,15 @@ function renderShortstat(total) {
   );
 }
 
+/**
+ * Prints human-readable CLI output for an extended diff report.
+ *
+ * @param {CliReport} report - Report to print.
+ * @returns {void}
+ *
+ * @example
+ * renderTextOutput(report);
+ */
 function renderTextOutput(report) {
   const { total, categories, reconciliation } = report;
 
@@ -140,6 +253,15 @@ function renderTextOutput(report) {
   }
 }
 
+/**
+ * Prints JSON output for an extended diff report.
+ *
+ * @param {CliReport} report - Report to serialize.
+ * @returns {void}
+ *
+ * @example
+ * renderJsonOutput(report);
+ */
 function renderJsonOutput(report) {
   console.log(JSON.stringify({
     shortstatLine: report.shortstatLine,
@@ -152,6 +274,12 @@ function renderJsonOutput(report) {
   }, null, 2));
 }
 
+/**
+ * Parses and validates command-line arguments.
+ *
+ * @returns {CliArgv} Parsed CLI arguments.
+ * @throws {Error} When incompatible arguments are provided.
+ */
 function parseArgv() {
   return yargs(hideBin(process.argv))
     .scriptName('gdsx')
@@ -199,6 +327,11 @@ function parseArgv() {
     .parseSync();
 }
 
+/**
+ * Entrypoint for CLI execution.
+ *
+ * @returns {void}
+ */
 function main() {
   try {
     const argv = parseArgv();

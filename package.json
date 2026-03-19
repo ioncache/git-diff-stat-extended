@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Extended git diff stats with implementation/tests/comments breakdown and strict reconciliation.",
   "license": "MIT",
-  "type": "commonjs",
+  "type": "module",
   "bin": {
     "gdsx": "./gdsx"
   },
@@ -19,8 +19,8 @@
   },
   "homepage": "https://github.com/ioncache/git-diff-stat-extended#readme",
   "scripts": {
-    "test": "node --test",
-    "check": "node --test"
+    "test": "vitest run",
+    "check": "vitest run"
   },
   "dependencies": {
     "@babel/parser": "^7.28.4",
@@ -28,5 +28,8 @@
     "picocolors": "^1.1.1",
     "picomatch": "^4.0.3",
     "yargs": "^18.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
   }
 }

@@ -1,12 +1,141 @@
-const { spawnSync } = require('child_process');
-const picomatch = require('picomatch');
-const babelParser = require('@babel/parser');
+import { spawnSync } from 'node:child_process';
+import picomatch from 'picomatch';
+import * as babelParser from '@babel/parser';
 
+/**
+ * @typedef {Object} RunGitOptions
+ * @property {string} [cwd] - Working directory used to execute git.
+ * @property {boolean} [allowFailure=false] - When true, non-zero git exits are returned instead of thrown.
+ */
+
+/**
+ * @typedef {Object} GitResult
+ * @property {number} status - Process exit code.
+ * @property {string} stdout - Process standard output.
+ * @property {string} stderr - Process standard error.
+ */
+
+/**
+ * @typedef {Object} RawDiffEntry
+ * @property {string} oldMode - Source file mode in octal form.
+ * @property {string} newMode - Destination file mode in octal form.
+ * @property {string} oldSha - Source blob SHA.
+ * @property {string} newSha - Destination blob SHA.
+ * @property {string} status - Single-letter diff status.
+ * @property {string} statusCode - Full diff status code including score.
+ * @property {string|null} oldPath - Source path when present.
+ * @property {string|null} newPath - Destination path when present.
+ * @property {string} displayPath - Primary path used for display and filtering.
+ */
+
+/**
+ * @typedef {Object} Shortstat
+ * @property {number} filesChanged - Number of files changed.
+ * @property {number} insertions - Number of inserted lines.
+ * @property {number} deletions - Number of deleted lines.
+ * @property {string} raw - Raw shortstat output text.
+ */
+
+/**
+ * @typedef {Object} LineCounts
+ * @property {number} insertions - Number of inserted lines.
+ * @property {number} deletions - Number of deleted lines.
+ */
+
+/**
+ * @typedef {Object} CategoryTotals
+ * @property {LineCounts} implementation - Implementation line counts.
+ * @property {LineCounts} tests - Test line counts.
+ * @property {LineCounts} comments - Comment line counts.
+ */
+
+/**
+ * @typedef {Object} Reconciliation
+ * @property {boolean} pass - Whether computed totals match authoritative totals.
+ * @property {LineCounts} expected - Git shortstat totals.
+ * @property {LineCounts} computed - Category rollup totals.
+ */
+
+/**
+ * @typedef {Object} FilterSet
+ * @property {string[]} include - Include patterns.
+ * @property {string[]} exclude - Exclude patterns.
+ */
+
+/**
+ * @typedef {Object} ReportTotals
+ * @property {number} filesChanged - Number of files changed.
+ * @property {number} insertions - Number of inserted lines.
+ * @property {number} deletions - Number of deleted lines.
+ */
+
+/**
+ * @typedef {Object} HunkHeader
+ * @property {number} oldLine - Starting old-side line number.
+ * @property {number} newLine - Starting new-side line number.
+ */
+
+/**
+ * @typedef {Object} GenerateStatsOptions
+ * @property {string} [base] - Base ref used with head when range is not provided.
+ * @property {string} [head] - Head ref used with base when range is not provided.
+ * @property {string} [range] - Explicit git revset.
+ * @property {string|string[]} [include] - Include glob pattern or list of patterns.
+ * @property {string|string[]} [exclude] - Exclude glob pattern or list of patterns.
+ * @property {string} [cwd] - Working directory used to execute git.
+ * @property {boolean} [verbose=false] - Enables warning output for recoverable parse failures.
+ */
+
+/**
+ * @typedef {Object} SelectedFile
+ * @property {string} status - Git raw diff status code.
+ * @property {string|null} oldPath - Source path.
+ * @property {string|null} newPath - Destination path.
+ * @property {string} path - Primary display path.
+ */
+
+/**
+ * @typedef {Object} GdsxReport
+ * @property {string} range - Effective comparison range.
+ * @property {string[]} rangeArgs - Git range arguments used for diff commands.
+ * @property {FilterSet} filters - Normalized include and exclude patterns.
+ * @property {ReportTotals} total - Authoritative totals from git shortstat.
+ * @property {CategoryTotals} categories - Categorized implementation, test, and comment totals.
+ * @property {Reconciliation} reconciliation - Reconciliation status and totals.
+ * @property {string} shortstatLine - Human-readable shortstat line.
+ * @property {SelectedFile[]} selectedFiles - Selected files used for stat computation.
+ */
+
+/**
+ * @callback CommentLineProvider
+ * @param {string} sha - Blob SHA.
+ * @param {string} path - File path associated with the blob.
+ * @returns {Set<number>} Set of line numbers identified as comments.
+ */
+
+/**
+ * Runs a git command and returns process output.
+ *
+ * @param {string[]} args - Git arguments to execute.
+ * @param {RunGitOptions} [options={}] - Execution options.
+ * @returns {GitResult} Git process result.
+ * @throws {Error} When the git process cannot be started.
+ * @throws {Error} When git exits non-zero and allowFailure is false.
+ *
+ * @example
+ * const result = runGit(['rev-parse', 'HEAD'], { cwd: '/repo' });
+ * console.log(result.stdout.trim());
+ */
 function runGit(args, options = {}) {
   const result = spawnSync('git', args, {
     cwd: options.cwd || process.cwd(),
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
+    env: {
+      ...process.env,
+      LC_ALL: 'C',
+      LANG: 'C',
+    },
   });
 
   if (result.error) {
@@ -26,10 +155,23 @@ function runGit(args, options = {}) {
   };
 }
 
+/**
+ * Checks whether a SHA is absent or represents git's all-zero sentinel.
+ *
+ * @param {string|null|undefined} sha - Candidate SHA string.
+ * @returns {boolean} True when the SHA is empty or all zeros.
+ */
 function zeroSha(sha) {
   return !sha || /^0+$/.test(sha);
 }
 
+/**
+ * Parses NUL-delimited git raw diff output into structured entries.
+ *
+ * @param {string} rawText - Raw text returned by `git diff --raw -z`.
+ * @returns {RawDiffEntry[]} Parsed raw diff entries.
+ * @throws {Error} When a metadata token does not match git raw diff format.
+ */
 function parseRawDiffZ(rawText) {
   if (!rawText) {
     return [];
@@ -91,6 +233,12 @@ function parseRawDiffZ(rawText) {
   return entries;
 }
 
+/**
+ * Parses git shortstat output into numeric totals.
+ *
+ * @param {string} shortstatText - Raw shortstat text.
+ * @returns {Shortstat} Parsed shortstat fields.
+ */
 function parseShortstat(shortstatText) {
   const text = (shortstatText || '').trim();
   const parsed = {
@@ -121,6 +269,14 @@ function parseShortstat(shortstatText) {
   return parsed;
 }
 
+/**
+ * Formats a shortstat-style summary line.
+ *
+ * @param {number} filesChanged - Number of changed files.
+ * @param {number} insertions - Number of inserted lines.
+ * @param {number} deletions - Number of deleted lines.
+ * @returns {string} Formatted shortstat summary.
+ */
 function formatShortstatLine(filesChanged, insertions, deletions) {
   const filesWord = filesChanged === 1 ? 'file' : 'files';
   const insertionsWord = insertions === 1 ? 'insertion' : 'insertions';
@@ -128,6 +284,12 @@ function formatShortstatLine(filesChanged, insertions, deletions) {
   return `${filesChanged} ${filesWord} changed, ${insertions} ${insertionsWord}(+), ${deletions} ${deletionsWord}(-)`;
 }
 
+/**
+ * Normalizes CLI include or exclude inputs into a flat string list.
+ *
+ * @param {string|string[]|undefined} values - Raw pattern input.
+ * @returns {string[]} Normalized non-empty patterns.
+ */
 function normalizePatterns(values) {
   if (!values) {
     return [];
@@ -138,10 +300,22 @@ function normalizePatterns(values) {
   return [values].filter(Boolean);
 }
 
+/**
+ * Compiles glob patterns into matcher functions.
+ *
+ * @param {string[]} patterns - Glob patterns to compile.
+ * @returns {((path: string) => boolean)[]} Path matcher functions.
+ */
 function buildMatchers(patterns) {
   return patterns.map((pattern) => picomatch(pattern, { dot: true }));
 }
 
+/**
+ * Determines whether a path should be categorized as a test file.
+ *
+ * @param {string|null|undefined} path - File path to classify.
+ * @returns {boolean} True when the path matches test conventions.
+ */
 function isTestPath(path) {
   const lower = (path || '').toLowerCase();
   if (!lower) {
@@ -152,10 +326,24 @@ function isTestPath(path) {
   return hasTestSegment || hasTestFileName;
 }
 
+/**
+ * Determines whether a path belongs to a JS or TS family file extension.
+ *
+ * @param {string|null|undefined} path - File path to classify.
+ * @returns {boolean} True for JS or TS family extensions.
+ */
 function isJsTsPath(path) {
   return /\.(js|jsx|ts|tsx|mjs|cjs|mts|cts)$/i.test(path || '');
 }
 
+/**
+ * Applies include and exclude matchers to a candidate path.
+ *
+ * @param {string|null|undefined} path - Candidate file path.
+ * @param {((path: string) => boolean)[]} includeMatchers - Include matchers.
+ * @param {((path: string) => boolean)[]} excludeMatchers - Exclude matchers.
+ * @returns {boolean} True when the path passes filtering.
+ */
 function pathSelected(path, includeMatchers, excludeMatchers) {
   if (!path) {
     return false;
@@ -172,11 +360,27 @@ function pathSelected(path, includeMatchers, excludeMatchers) {
   return true;
 }
 
+/**
+ * Determines whether a raw diff entry should be included in reporting.
+ *
+ * @param {RawDiffEntry} entry - Raw diff entry to evaluate.
+ * @param {((path: string) => boolean)[]} includeMatchers - Include matchers.
+ * @param {((path: string) => boolean)[]} excludeMatchers - Exclude matchers.
+ * @returns {boolean} True when the entry is selected.
+ */
 function selectEntry(entry, includeMatchers, excludeMatchers) {
   const candidate = entry.displayPath || entry.newPath || entry.oldPath;
   return pathSelected(candidate, includeMatchers, excludeMatchers);
 }
 
+/**
+ * Parses source text and returns the set of line numbers that contain comments.
+ *
+ * @param {string} sourceText - File content to parse.
+ * @param {string} filePath - Path used to infer parser plugins.
+ * @returns {Set<number>} Set of comment line numbers.
+ * @throws {Error} When the source cannot be parsed by supported plugin sets.
+ */
 function parseCommentsByLine(sourceText, filePath) {
   const commentsByLine = new Set();
 
@@ -232,6 +436,12 @@ function parseCommentsByLine(sourceText, filePath) {
   return commentsByLine;
 }
 
+/**
+ * Parses a unified diff hunk header and extracts starting line numbers.
+ *
+ * @param {string} line - Diff line to parse.
+ * @returns {HunkHeader|null} Parsed hunk coordinates or null.
+ */
 function parseHunkHeader(line) {
   const match = /^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/.exec(line);
   if (!match) {
@@ -243,6 +453,15 @@ function parseHunkHeader(line) {
   };
 }
 
+/**
+ * Classifies one changed line into implementation, tests, or comments.
+ *
+ * @param {'old'|'new'} side - Side of the diff line being classified.
+ * @param {number} lineNumber - Line number on the selected side.
+ * @param {RawDiffEntry} entry - Raw diff entry for the file.
+ * @param {CommentLineProvider} commentLineProvider - Provider for comment line sets.
+ * @returns {'implementation'|'tests'|'comments'} Line classification category.
+ */
 function classifyLine(side, lineNumber, entry, commentLineProvider) {
   const sidePath = side === 'old' ? entry.oldPath : entry.newPath;
   if (!sidePath) {
@@ -266,6 +485,14 @@ function classifyLine(side, lineNumber, entry, commentLineProvider) {
   return 'implementation';
 }
 
+/**
+ * Classifies all changed lines in a patch into category totals.
+ *
+ * @param {string} patchText - Unified diff patch text.
+ * @param {RawDiffEntry} entry - Raw diff entry associated with the patch.
+ * @param {CommentLineProvider} commentLineProvider - Provider for comment line sets.
+ * @returns {CategoryTotals} Per-category insertion and deletion counts.
+ */
 function classifyPatchText(patchText, entry, commentLineProvider) {
   const result = {
     implementation: { insertions: 0, deletions: 0 },
@@ -318,6 +545,13 @@ function classifyPatchText(patchText, entry, commentLineProvider) {
   return result;
 }
 
+/**
+ * Adds delta category counts into a target accumulator.
+ *
+ * @param {CategoryTotals} target - Mutable totals accumulator.
+ * @param {CategoryTotals} delta - Increment values to add.
+ * @returns {void}
+ */
 function addCategoryTotals(target, delta) {
   target.implementation.insertions += delta.implementation.insertions;
   target.implementation.deletions += delta.implementation.deletions;
@@ -327,6 +561,13 @@ function addCategoryTotals(target, delta) {
   target.comments.deletions += delta.comments.deletions;
 }
 
+/**
+ * Reconciles category totals against authoritative git insertion and deletion totals.
+ *
+ * @param {LineCounts} total - Authoritative insertions and deletions.
+ * @param {CategoryTotals} categories - Category totals to reconcile.
+ * @returns {Reconciliation} Reconciliation result.
+ */
 function reconcileTotals(total, categories) {
   const computedInsertions =
     categories.implementation.insertions +
@@ -353,6 +594,12 @@ function reconcileTotals(total, categories) {
   };
 }
 
+/**
+ * Builds git range arguments from explicit range or base and head refs.
+ *
+ * @param {GenerateStatsOptions} input - User-provided range options.
+ * @returns {string[]} Git range arguments for diff commands.
+ */
 function buildRangeArgs(input) {
   if (input.range) {
     return [input.range];
@@ -360,6 +607,11 @@ function buildRangeArgs(input) {
   return [input.base || 'HEAD~1', input.head || 'HEAD'];
 }
 
+/**
+ * Creates an empty category totals object.
+ *
+ * @returns {CategoryTotals} Zeroed category totals.
+ */
 function createEmptyCategories() {
   return {
     implementation: { insertions: 0, deletions: 0 },
@@ -368,14 +620,43 @@ function createEmptyCategories() {
   };
 }
 
+/**
+ * Generates extended diff stats and reconciliation details for a git range.
+ *
+ * @param {GenerateStatsOptions} [options={}] - Report generation options.
+ * @returns {GdsxReport} Extended stats report.
+ * @throws {Error} When required git commands fail.
+ * @throws {Error} When raw diff output cannot be parsed.
+ *
+ * @example
+ * const report = generateStats({ base: 'main', head: 'HEAD' });
+ * console.log(report.reconciliation.pass);
+ */
 function generateStats(options = {}) {
   const includePatterns = normalizePatterns(options.include);
   const excludePatterns = normalizePatterns(options.exclude);
 
   const includeMatchers = buildMatchers(includePatterns);
   const excludeMatchers = buildMatchers(excludePatterns);
-  const rangeArgs = buildRangeArgs(options);
   const cwd = options.cwd || process.cwd();
+  const hasExplicitRange = Boolean(options.range || options.base || options.head);
+  const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+
+  let rangeArgs = buildRangeArgs(options);
+  let effectiveRange = options.range || `${options.base || 'HEAD~1'}..${options.head || 'HEAD'}`;
+
+  if (!hasExplicitRange) {
+    const hasParentCommit = runGit(['rev-parse', '--verify', '--quiet', 'HEAD~1'], {
+      cwd,
+      allowFailure: true,
+    });
+
+    if (hasParentCommit.status !== 0) {
+      const headRef = options.head || 'HEAD';
+      rangeArgs = [EMPTY_TREE_SHA, headRef];
+      effectiveRange = `${EMPTY_TREE_SHA}..${headRef}`;
+    }
+  }
 
   const rawArgs = ['diff', '--raw', '-z', '--find-renames', '--no-ext-diff', ...rangeArgs];
   const rawResult = runGit(rawArgs, { cwd });
@@ -416,6 +697,13 @@ function generateStats(options = {}) {
     const commentLineCache = new Map();
     const blobTextCache = new Map();
 
+    /**
+     * Loads blob text for a given SHA using git cat-file.
+     *
+     * @param {string} sha - Blob SHA to load.
+     * @returns {string|null} Blob text when available, otherwise null.
+     * @throws {Error} When git process execution fails.
+     */
     function getBlobText(sha) {
       if (blobTextCache.has(sha)) {
         return blobTextCache.get(sha);
@@ -427,6 +715,13 @@ function generateStats(options = {}) {
       return text;
     }
 
+    /**
+     * Resolves comment line numbers for a blob and path with caching.
+     *
+     * @param {string} sha - Blob SHA.
+     * @param {string} path - File path used for parser plugin selection.
+     * @returns {Set<number>} Comment line numbers for the requested blob.
+     */
     function getCommentLines(sha, path) {
       const cacheKey = `${sha}::${path}`;
       if (commentLineCache.has(cacheKey)) {
@@ -492,7 +787,7 @@ function generateStats(options = {}) {
   const shortstatLine = formatShortstatLine(total.filesChanged, total.insertions, total.deletions);
 
   return {
-    range: options.range || `${options.base || 'HEAD~1'}..${options.head || 'HEAD'}`,
+    range: effectiveRange,
     rangeArgs,
     filters: {
       include: includePatterns,
@@ -511,7 +806,7 @@ function generateStats(options = {}) {
   };
 }
 
-module.exports = {
+export {
   generateStats,
   parseRawDiffZ,
   parseShortstat,
