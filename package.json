@@ -1,0 +1,32 @@
+{
+  "name": "git-diff-stat-extended",
+  "version": "0.1.0",
+  "description": "Extended git diff stats with implementation/tests/comments breakdown and strict reconciliation.",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "gdsx": "./gdsx"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/<your-username>/git-diff-stat-extended.git"
+  },
+  "bugs": {
+    "url": "https://github.com/<your-username>/git-diff-stat-extended/issues"
+  },
+  "homepage": "https://github.com/<your-username>/git-diff-stat-extended#readme",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --test"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.28.4",
+    "cli-table3": "^0.6.5",
+    "picocolors": "^1.1.1",
+    "picomatch": "^4.0.3",
+    "yargs": "^18.0.0"
+  }
+}

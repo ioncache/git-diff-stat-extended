@@ -1,0 +1,230 @@
+#!/usr/bin/env node
+
+const { spawnSync } = require('child_process');
+const yargs = require('yargs/yargs');
+const { hideBin } = require('yargs/helpers');
+const pc = require('picocolors');
+const Table = require('cli-table3');
+const { generateStats } = require('./gdsx-lib');
+
+function readGitColorUiSetting() {
+  const result = spawnSync('git', ['config', '--get', 'color.ui'], {
+    encoding: 'utf8',
+  });
+
+  if (result.status !== 0) {
+    return null;
+  }
+
+  const value = (result.stdout || '').trim().toLowerCase();
+  return value || null;
+}
+
+function colorsForOutput() {
+  if (process.env.NO_COLOR !== undefined) {
+    return pc.createColors(false);
+  }
+
+  const forced = process.env.FORCE_COLOR;
+  if (forced !== undefined) {
+    return pc.createColors(forced !== '0');
+  }
+
+  const gitColorUi = readGitColorUiSetting();
+  if (gitColorUi === 'always') {
+    return pc.createColors(true);
+  }
+  if (gitColorUi === 'never') {
+    return pc.createColors(false);
+  }
+
+  return pc.createColors(Boolean(process.stdout.isTTY));
+}
+
+const colors = colorsForOutput();
+
+function fmtSigned(insertions, deletions) {
+  return `${colors.green(`+${insertions}`)} ${colors.red(`-${deletions}`)}`;
+}
+
+function fmtInsertion(value) {
+  return colors.green(`+${value}`);
+}
+
+function fmtDeletion(value) {
+  return colors.red(`-${value}`);
+}
+
+function fmtNet(value) {
+  if (value > 0) {
+    return colors.green(`+${value}`);
+  }
+  if (value < 0) {
+    return colors.red(`${value}`);
+  }
+  return `${value}`;
+}
+
+function renderShortstat(total) {
+  const filesWord = total.filesChanged === 1 ? 'file' : 'files';
+  const insertionsWord = total.insertions === 1 ? 'insertion' : 'insertions';
+  const deletionsWord = total.deletions === 1 ? 'deletion' : 'deletions';
+
+  return (
+    `${total.filesChanged} ${filesWord} changed, ` +
+    `${colors.green(`${total.insertions} ${insertionsWord}(+)`)}, ` +
+    `${colors.red(`${total.deletions} ${deletionsWord}(-)`)}`
+  );
+}
+
+function renderTextOutput(report) {
+  const { total, categories, reconciliation } = report;
+
+  console.log(renderShortstat(total));
+
+  const rows = [
+    {
+      category: 'implementation',
+      insertions: categories.implementation.insertions,
+      deletions: categories.implementation.deletions,
+    },
+    {
+      category: 'tests',
+      insertions: categories.tests.insertions,
+      deletions: categories.tests.deletions,
+    },
+    {
+      category: 'comments',
+      insertions: categories.comments.insertions,
+      deletions: categories.comments.deletions,
+    },
+  ];
+
+  const table = new Table({
+    head: ['Category', 'Insertions', 'Deletions', 'Net'],
+    colAligns: ['left', 'right', 'right', 'right'],
+    style: { head: [], border: [] },
+  });
+
+  for (const row of rows) {
+    const net = row.insertions - row.deletions;
+    table.push([
+      row.category,
+      fmtInsertion(row.insertions),
+      fmtDeletion(row.deletions),
+      fmtNet(net),
+    ]);
+  }
+
+  table.push([
+    colors.bold('total'),
+    colors.bold(fmtInsertion(total.insertions)),
+    colors.bold(fmtDeletion(total.deletions)),
+    colors.bold(fmtNet(total.insertions - total.deletions)),
+  ]);
+
+  console.log(table.toString());
+
+  const statusLabel = reconciliation.pass ? colors.green('PASS') : colors.red('FAIL');
+  console.log(
+    `${statusLabel} reconciliation: expected ${fmtSigned(reconciliation.expected.insertions, reconciliation.expected.deletions)}, ` +
+      `computed ${fmtSigned(reconciliation.computed.insertions, reconciliation.computed.deletions)}`
+  );
+
+  if (!reconciliation.pass) {
+    console.error('Diagnostics:');
+    console.error(`  implementation: ${fmtSigned(categories.implementation.insertions, categories.implementation.deletions)}`);
+    console.error(`  tests: ${fmtSigned(categories.tests.insertions, categories.tests.deletions)}`);
+    console.error(`  comments: ${fmtSigned(categories.comments.insertions, categories.comments.deletions)}`);
+    console.error(`  total: ${fmtSigned(total.insertions, total.deletions)}`);
+  }
+}
+
+function renderJsonOutput(report) {
+  console.log(JSON.stringify({
+    shortstatLine: report.shortstatLine,
+    total: report.total,
+    categories: report.categories,
+    reconciliation: report.reconciliation,
+    range: report.range,
+    filters: report.filters,
+    selectedFiles: report.selectedFiles,
+  }, null, 2));
+}
+
+function parseArgv() {
+  return yargs(hideBin(process.argv))
+    .scriptName('gdsx')
+    .usage('$0 [options]')
+    .option('base', {
+      type: 'string',
+      description: 'Base ref used with --head (default HEAD~1)',
+    })
+    .option('head', {
+      type: 'string',
+      description: 'Head ref used with --base (default HEAD)',
+    })
+    .option('range', {
+      type: 'string',
+      description: 'Git revision range expression (for example main...HEAD)',
+    })
+    .option('include', {
+      type: 'string',
+      array: true,
+      description: 'Include glob pattern, repeatable',
+    })
+    .option('exclude', {
+      type: 'string',
+      array: true,
+      description: 'Exclude glob pattern, repeatable',
+    })
+    .option('json', {
+      type: 'boolean',
+      default: false,
+      description: 'Emit JSON output',
+    })
+    .option('verbose', {
+      type: 'boolean',
+      default: false,
+      description: 'Print warnings and additional diagnostics',
+    })
+    .check((argv) => {
+      if (argv.range && (argv.base || argv.head)) {
+        throw new Error('Use either --range or --base/--head, not both.');
+      }
+      return true;
+    })
+    .strict()
+    .help()
+    .parseSync();
+}
+
+function main() {
+  try {
+    const argv = parseArgv();
+    const report = generateStats({
+      base: argv.base,
+      head: argv.head,
+      range: argv.range,
+      include: argv.include,
+      exclude: argv.exclude,
+      verbose: argv.verbose,
+    });
+
+    if (argv.json) {
+      renderJsonOutput(report);
+    } else {
+      renderTextOutput(report);
+    }
+
+    if (!report.reconciliation.pass) {
+      process.exitCode = 1;
+    }
+  } catch (error) {
+    const message = error && error.message ? error.message : String(error);
+    console.error(colors.red(`gdsx error: ${message}`));
+    process.exitCode = 1;
+  }
+}
+
+main();
