@@ -1,6 +1,6 @@
 {
   "name": "git-diff-stat-extended",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Extended git diff stats with implementation/tests/comments breakdown and strict reconciliation.",
   "author": "ioncache",
   "license": "MIT",
