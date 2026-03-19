@@ -1,5 +1,5 @@
 ---
-applyTo: '**/*.test.js,**/*.test.ts,**/*.test.jsx,**/*.test.tsx'
+applyTo: "**/*.test.js,**/*.test.ts,**/*.test.jsx,**/*.test.tsx"
 ---
 
 # Unit Testing Standards (Vitest)
@@ -17,23 +17,23 @@ applyTo: '**/*.test.js,**/*.test.ts,**/*.test.jsx,**/*.test.tsx'
 ## Test Structure
 
 ```javascript
-import { describe, it, expect, beforeEach } from 'vitest'
-import { functionToTest } from './moduleToTest'
+import { describe, it, expect, beforeEach } from "vitest";
+import { functionToTest } from "./moduleToTest";
 
-describe('moduleToTest.js', () => {
-  describe('functionToTest', () => {
-    it('should do something specific when given certain input', () => {
+describe("moduleToTest.js", () => {
+  describe("functionToTest", () => {
+    it("should do something specific when given certain input", () => {
       // Arrange
-      const input = 'test'
+      const input = "test";
 
       // Act
-      const result = functionToTest(input)
+      const result = functionToTest(input);
 
       // Assert
-      expect(result).toBe('expected')
-    })
-  })
-})
+      expect(result).toBe("expected");
+    });
+  });
+});
 ```
 
 ## Coverage & Mocking
@@ -48,12 +48,12 @@ why. Prefer refactoring for testability:
 ```javascript
 // Before: requires mocking Date
 function getCurrentTime() {
-  return new Date().toISOString()
+  return new Date().toISOString();
 }
 
 // After: testable via dependency injection
 function getCurrentTime(date = new Date()) {
-  return date.toISOString()
+  return date.toISOString();
 }
 ```
 
@@ -75,13 +75,13 @@ Do not consider test changes complete until tests pass.
 - One behavior per test when possible
 
 ```javascript
-describe('Calculator', () => {
-  describe('add', () => {
-    it('should return sum of two positive numbers', () => {})
-    it('should handle negative numbers correctly', () => {})
-    it('should throw error for non-numeric input', () => {})
-  })
-})
+describe("Calculator", () => {
+  describe("add", () => {
+    it("should return sum of two positive numbers", () => {});
+    it("should handle negative numbers correctly", () => {});
+    it("should throw error for non-numeric input", () => {});
+  });
+});
 ```
 
 ## AAAR Comments
@@ -98,47 +98,47 @@ Simple tests with obvious steps may omit these.
 ## Example Test
 
 ```javascript
-import { describe, it, expect, beforeEach } from 'vitest'
-import { processRanges } from './labResults'
+import { describe, it, expect, beforeEach } from "vitest";
+import { processRanges } from "./labResults";
 
-describe('labResults.js', () => {
-  describe('processRanges', () => {
-    let ranges, value, options
+describe("labResults.js", () => {
+  describe("processRanges", () => {
+    let ranges, value, options;
 
     beforeEach(() => {
       // Arrange
       ranges = {
         optimal: [[0, 10]],
         warning: [[11, 20]],
-        danger: [[21, 30]]
-      }
-      value = 15
-      options = {}
-    })
+        danger: [[21, 30]],
+      };
+      value = 15;
+      options = {};
+    });
 
-    it('should return correct range info for value in warning range', () => {
+    it("should return correct range info for value in warning range", () => {
       // Act
-      const result = processRanges(ranges, value, options)
+      const result = processRanges(ranges, value, options);
 
       // Assert
-      expect(result.activeRange.type).toBe('warning')
-      expect(result.percent).toBeGreaterThan(0)
-      expect(result.percent).toBeLessThan(100)
-    })
+      expect(result.activeRange.type).toBe("warning");
+      expect(result.percent).toBeGreaterThan(0);
+      expect(result.percent).toBeLessThan(100);
+    });
 
-    it('should handle null ranges gracefully', () => {
+    it("should handle null ranges gracefully", () => {
       // Arrange
-      ranges = null
+      ranges = null;
 
       // Act
-      const result = processRanges(ranges, value, options)
+      const result = processRanges(ranges, value, options);
 
       // Assert
-      expect(result.noRanges).toBe(true)
-      expect(result.percent).toBe(50)
-    })
-  })
-})
+      expect(result.noRanges).toBe(true);
+      expect(result.percent).toBe(50);
+    });
+  });
+});
 ```
 
 ## Checklist

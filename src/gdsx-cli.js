@@ -1,0 +1,372 @@
+import { spawnSync } from "node:child_process";
+import yargs from "yargs/yargs";
+import { hideBin } from "yargs/helpers";
+import pc from "picocolors";
+import Table from "cli-table3";
+import { generateStats } from "./gdsx-lib.js";
+
+/**
+ * @typedef {Object} CliTotals
+ * @property {number} filesChanged - Number of changed files.
+ * @property {number} insertions - Number of inserted lines.
+ * @property {number} deletions - Number of deleted lines.
+ */
+
+/**
+ * @typedef {Object} CliLineCounts
+ * @property {number} insertions - Number of inserted lines.
+ * @property {number} deletions - Number of deleted lines.
+ */
+
+/**
+ * @typedef {Object} CliCategories
+ * @property {CliLineCounts} implementation - Implementation totals.
+ * @property {CliLineCounts} tests - Test totals.
+ * @property {CliLineCounts} comments - Comment totals.
+ */
+
+/**
+ * @typedef {Object} CliReconciliation
+ * @property {boolean} pass - Whether computed totals match git totals.
+ * @property {CliLineCounts} expected - Expected totals from git shortstat.
+ * @property {CliLineCounts} computed - Computed totals from category rollup.
+ */
+
+/**
+ * @typedef {Object} CliFilters
+ * @property {string[]} include - Include patterns.
+ * @property {string[]} exclude - Exclude patterns.
+ */
+
+/**
+ * @typedef {Object} CliSelectedFile
+ * @property {string} status - Git raw diff status code.
+ * @property {string|null} oldPath - Source path.
+ * @property {string|null} newPath - Destination path.
+ * @property {string} path - Primary display path.
+ */
+
+/**
+ * @typedef {Object} CliReport
+ * @property {string} shortstatLine - Human-readable shortstat line.
+ * @property {CliTotals} total - Authoritative totals.
+ * @property {CliCategories} categories - Category totals.
+ * @property {CliReconciliation} reconciliation - Reconciliation details.
+ * @property {string} range - Effective range string.
+ * @property {CliFilters} filters - Applied filters.
+ * @property {CliSelectedFile[]} selectedFiles - Selected files.
+ */
+
+/**
+ * @typedef {Object} CliArgv
+ * @property {string} [base] - Base ref used with head.
+ * @property {string} [head] - Head ref used with base.
+ * @property {string} [range] - Explicit git revset.
+ * @property {string[]} [include] - Include glob patterns.
+ * @property {string[]} [exclude] - Exclude glob patterns.
+ * @property {boolean} json - Whether to emit JSON output.
+ * @property {boolean} verbose - Whether to emit extra diagnostics.
+ */
+
+/**
+ * Reads git's color.ui configuration value.
+ *
+ * @returns {'always'|'never'|string|null} Git color setting or null when unavailable.
+ */
+function readGitColorUiSetting() {
+  const result = spawnSync("git", ["config", "--get", "color.ui"], {
+    encoding: "utf8",
+  });
+
+  /* istanbul ignore next -- depends on local git availability/config outside deterministic unit-test control */
+  if (result.status !== 0) {
+    return null;
+  }
+
+  const value = (result.stdout || "").trim().toLowerCase();
+  return value || null;
+}
+
+/**
+ * Resolves terminal color behavior from environment variables and git config.
+ *
+ * @returns {ReturnType<typeof pc.createColors>} Color helpers for output formatting.
+ */
+function colorsForOutput() {
+  if (process.env.NO_COLOR !== undefined) {
+    return pc.createColors(false);
+  }
+
+  const forced = process.env.FORCE_COLOR;
+  if (forced !== undefined) {
+    return pc.createColors(forced !== "0");
+  }
+
+  const gitColorUi = readGitColorUiSetting();
+  if (gitColorUi === "always") {
+    return pc.createColors(true);
+  }
+  if (gitColorUi === "never") {
+    return pc.createColors(false);
+  }
+
+  return pc.createColors(Boolean(process.stdout.isTTY));
+}
+
+const colors = colorsForOutput();
+
+/**
+ * Formats signed insertion and deletion values with colors.
+ *
+ * @param {number} insertions - Insertion count.
+ * @param {number} deletions - Deletion count.
+ * @returns {string} Colorized signed counts.
+ */
+function fmtSigned(insertions, deletions) {
+  return `${colors.green(`+${insertions}`)} ${colors.red(`-${deletions}`)}`;
+}
+
+/**
+ * Formats an insertion value with the insert color.
+ *
+ * @param {number} value - Insertion count.
+ * @returns {string} Colorized insertion value.
+ */
+function fmtInsertion(value) {
+  return colors.green(`+${value}`);
+}
+
+/**
+ * Formats a deletion value with the delete color.
+ *
+ * @param {number} value - Deletion count.
+ * @returns {string} Colorized deletion value.
+ */
+function fmtDeletion(value) {
+  return colors.red(`-${value}`);
+}
+
+/**
+ * Formats a net delta with positive and negative color styling.
+ *
+ * @param {number} value - Net value to render.
+ * @returns {string} Colorized net value.
+ */
+function fmtNet(value) {
+  if (value > 0) {
+    return colors.green(`+${value}`);
+  }
+  if (value < 0) {
+    return colors.red(`${value}`);
+  }
+  return `${value}`;
+}
+
+/**
+ * Renders a git shortstat-style summary line.
+ *
+ * @param {CliTotals} total - Totals to render.
+ * @returns {string} Colorized shortstat summary.
+ */
+function renderShortstat(total) {
+  const filesWord = total.filesChanged === 1 ? "file" : "files";
+  const insertionsWord = total.insertions === 1 ? "insertion" : "insertions";
+  const deletionsWord = total.deletions === 1 ? "deletion" : "deletions";
+
+  return (
+    `${total.filesChanged} ${filesWord} changed, ` +
+    `${colors.green(`${total.insertions} ${insertionsWord}(+)`)}, ` +
+    `${colors.red(`${total.deletions} ${deletionsWord}(-)`)}`
+  );
+}
+
+/**
+ * Prints human-readable CLI output for an extended diff report.
+ *
+ * @param {CliReport} report - Report to print.
+ * @returns {void}
+ *
+ * @example
+ * renderTextOutput(report);
+ */
+function renderTextOutput(report) {
+  const { total, categories, reconciliation } = report;
+
+  console.log(renderShortstat(total));
+
+  const rows = [
+    {
+      category: "implementation",
+      insertions: categories.implementation.insertions,
+      deletions: categories.implementation.deletions,
+    },
+    {
+      category: "tests",
+      insertions: categories.tests.insertions,
+      deletions: categories.tests.deletions,
+    },
+    {
+      category: "comments",
+      insertions: categories.comments.insertions,
+      deletions: categories.comments.deletions,
+    },
+  ];
+
+  const table = new Table({
+    head: ["Category", "Insertions", "Deletions", "Net"],
+    colAligns: ["left", "right", "right", "right"],
+    style: { head: [], border: [] },
+  });
+
+  for (const row of rows) {
+    const net = row.insertions - row.deletions;
+    table.push([
+      row.category,
+      fmtInsertion(row.insertions),
+      fmtDeletion(row.deletions),
+      fmtNet(net),
+    ]);
+  }
+
+  table.push([
+    colors.bold("total"),
+    colors.bold(fmtInsertion(total.insertions)),
+    colors.bold(fmtDeletion(total.deletions)),
+    colors.bold(fmtNet(total.insertions - total.deletions)),
+  ]);
+
+  console.log(table.toString());
+
+  const statusLabel = reconciliation.pass ? colors.green("PASS") : colors.red("FAIL");
+  console.log(
+    `${statusLabel} reconciliation: expected ${fmtSigned(reconciliation.expected.insertions, reconciliation.expected.deletions)}, ` +
+      `computed ${fmtSigned(reconciliation.computed.insertions, reconciliation.computed.deletions)}`,
+  );
+
+  if (!reconciliation.pass) {
+    console.error("Diagnostics:");
+    console.error(
+      `  implementation: ${fmtSigned(categories.implementation.insertions, categories.implementation.deletions)}`,
+    );
+    console.error(`  tests: ${fmtSigned(categories.tests.insertions, categories.tests.deletions)}`);
+    console.error(
+      `  comments: ${fmtSigned(categories.comments.insertions, categories.comments.deletions)}`,
+    );
+    console.error(`  total: ${fmtSigned(total.insertions, total.deletions)}`);
+  }
+}
+
+/**
+ * Prints JSON output for an extended diff report.
+ *
+ * @param {CliReport} report - Report to serialize.
+ * @returns {void}
+ *
+ * @example
+ * renderJsonOutput(report);
+ */
+function renderJsonOutput(report) {
+  console.log(
+    JSON.stringify(
+      {
+        shortstatLine: report.shortstatLine,
+        total: report.total,
+        categories: report.categories,
+        reconciliation: report.reconciliation,
+        range: report.range,
+        filters: report.filters,
+        selectedFiles: report.selectedFiles,
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+/**
+ * Parses and validates command-line arguments.
+ *
+ * @returns {CliArgv} Parsed CLI arguments.
+ * @throws {Error} When incompatible arguments are provided.
+ */
+function parseArgv() {
+  return yargs(hideBin(process.argv))
+    .scriptName("gdsx")
+    .usage("$0 [options]")
+    .option("base", {
+      type: "string",
+      description: "Base ref used with --head (default HEAD~1)",
+    })
+    .option("head", {
+      type: "string",
+      description: "Head ref used with --base (default HEAD)",
+    })
+    .option("range", {
+      type: "string",
+      description: "Git revision range expression (for example main...HEAD)",
+    })
+    .option("include", {
+      type: "string",
+      array: true,
+      description: "Include glob pattern, repeatable",
+    })
+    .option("exclude", {
+      type: "string",
+      array: true,
+      description: "Exclude glob pattern, repeatable",
+    })
+    .option("json", {
+      type: "boolean",
+      default: false,
+      description: "Emit JSON output",
+    })
+    .option("verbose", {
+      type: "boolean",
+      default: false,
+      description: "Print warnings and additional diagnostics",
+    })
+    .check((argv) => {
+      if (argv.range && (argv.base || argv.head)) {
+        throw new Error("Use either --range or --base/--head, not both.");
+      }
+      return true;
+    })
+    .strict()
+    .help()
+    .parseSync();
+}
+
+/**
+ * Entrypoint for CLI execution.
+ *
+ * @returns {void}
+ */
+function main() {
+  try {
+    const argv = parseArgv();
+    const report = generateStats({
+      base: argv.base,
+      head: argv.head,
+      range: argv.range,
+      include: argv.include,
+      exclude: argv.exclude,
+      verbose: argv.verbose,
+    });
+
+    if (argv.json) {
+      renderJsonOutput(report);
+    } else {
+      renderTextOutput(report);
+    }
+
+    if (!report.reconciliation.pass) {
+      process.exitCode = 1;
+    }
+  } catch (error) {
+    const message = error && error.message ? error.message : String(error);
+    console.error(colors.red(`gdsx error: ${message}`));
+    process.exitCode = 1;
+  }
+}
+
+export { main };

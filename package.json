@@ -38,9 +38,29 @@
     "check": "vitest run",
     "clean": "rm -rf dist",
     "generate:typings": "tsc -p tsconfig.typings.json",
+    "lint": "eslint . && npm run lint:md",
+    "lint:fix": "eslint . --fix && npm run lint:md:fix",
+    "lint:md": "markdownlint-cli2",
+    "lint:md:fix": "markdownlint-cli2 --fix",
+    "prepare": "husky",
     "prepack": "npm run build",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
+  },
+  "lint-staged": {
+    "*.{js,mjs,cjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.md": [
+      "prettier --write",
+      "markdownlint-cli2 --fix"
+    ],
+    "*.{json,jsonc,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@babel/parser": "^7.28.4",
@@ -50,7 +70,15 @@
     "yargs": "^18.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.23.0",
     "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^9.23.0",
+    "eslint-config-prettier": "^10.1.1",
+    "globals": "^16.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "markdownlint-cli2": "^0.14.0",
+    "prettier": "^3.5.3",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }

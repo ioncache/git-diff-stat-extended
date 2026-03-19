@@ -1,5 +1,5 @@
 ---
-applyTo: '**'
+applyTo: "**"
 ---
 
 # Copilot Code Review Instructions
@@ -16,14 +16,12 @@ Comments should be actionable and specific to what changed.
 ## Core Principles
 
 1. **Review Only New or Modified Code**
-
    - Do not comment on issues that existed before the current changes (e.g.,
      file length, missing JSDoc, legacy patterns).
    - Focus feedback on code that was added, changed, or deleted in the pull
      request.
 
 2. **No Retroactive Enforcement**
-
    - Don't flag existing violations unless the change introduces a new issue or
      significantly worsens what's already there.
    - Example: A file already has 400 lines and the PR adds 10 more. Don't
@@ -31,12 +29,10 @@ Comments should be actionable and specific to what changed.
      only the new code.
 
 3. **Actionable Feedback**
-
    - Be specific about what changed.
    - Skip generic complaints about the codebase.
 
 4. **Respect Project-Specific Exceptions**
-
    - If project instructions allow exceptions or best-effort patterns, don't
      enforce stricter rules.
 

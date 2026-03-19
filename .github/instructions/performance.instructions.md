@@ -1,5 +1,5 @@
 ---
-applyTo: '**'
+applyTo: "**"
 ---
 
 # Performance Guidelines
@@ -20,14 +20,14 @@ applyTo: '**'
 function startWatcher(target) {
   const onChange = () => {
     /* ... */
-  }
-  target.addEventListener('change', onChange)
-  return () => target.removeEventListener('change', onChange)
+  };
+  target.addEventListener("change", onChange);
+  return () => target.removeEventListener("change", onChange);
 }
 
 // Good: Cleanup timers
-const timer = setInterval(runWork, 1000)
-clearInterval(timer)
+const timer = setInterval(runWork, 1000);
+clearInterval(timer);
 ```
 
 ## Compute Optimization
@@ -35,13 +35,13 @@ clearInterval(timer)
 **Cache expensive calculations when inputs are stable:**
 
 ```javascript
-const cache = new Map()
+const cache = new Map();
 
 function computeDigest(input) {
-  if (cache.has(input)) return cache.get(input)
-  const result = expensiveOperation(input)
-  cache.set(input, result)
-  return result
+  if (cache.has(input)) return cache.get(input);
+  const result = expensiveOperation(input);
+  cache.set(input, result);
+  return result;
 }
 ```
 
@@ -51,8 +51,8 @@ function computeDigest(input) {
 
 ```javascript
 async function loadAnalyzer() {
-  const { analyze } = await import('./analyzer.js')
-  return analyze
+  const { analyze } = await import("./analyzer.js");
+  return analyze;
 }
 ```
 

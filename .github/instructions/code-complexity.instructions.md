@@ -1,5 +1,5 @@
 ---
-applyTo: '**'
+applyTo: "**"
 ---
 
 # Code Complexity Guidelines
@@ -29,19 +29,19 @@ function process(order) {
   if (order.isValid) {
     if (order.items.length > 0) {
       if (order.customer.isActive) {
-        return doWork(order)
+        return doWork(order);
       }
     }
   }
-  return null
+  return null;
 }
 
 // Good: Guard clauses
 function process(order) {
-  if (!order.isValid) return null
-  if (order.items.length === 0) return null
-  if (!order.customer.isActive) return null
-  return doWork(order)
+  if (!order.isValid) return null;
+  if (order.items.length === 0) return null;
+  if (!order.customer.isActive) return null;
+  return doWork(order);
 }
 ```
 
@@ -53,7 +53,7 @@ function createUser(name, email, age, address, phone) {}
 
 // Good: Grouped params
 function createUser(userData) {
-  const { name, email, age, address, phone } = userData
+  const { name, email, age, address, phone } = userData;
 }
 ```
 
@@ -62,17 +62,17 @@ function createUser(userData) {
 ```javascript
 // Bad: Multiple responsibilities
 function processUserData(user) {
-  validateUser(user)
-  updateDatabase(user)
-  sendWelcomeEmail(user)
-  createUserProfile(user)
+  validateUser(user);
+  updateDatabase(user);
+  sendWelcomeEmail(user);
+  createUserProfile(user);
 }
 
 // Good: Composed from smaller functions
 function processUserData(user) {
-  validateUser(user)
-  const dbUser = updateDatabase(user)
-  notifyUser(dbUser)
+  validateUser(user);
+  const dbUser = updateDatabase(user);
+  notifyUser(dbUser);
 }
 ```
 
