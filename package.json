@@ -2,7 +2,18 @@
   "name": "git-diff-stat-extended",
   "version": "0.1.0",
   "description": "Extended git diff stats with implementation/tests/comments breakdown and strict reconciliation.",
+  "author": "ioncache",
   "license": "MIT",
+  "keywords": [
+    "git",
+    "diff",
+    "stats",
+    "cli",
+    "comments",
+    "tests",
+    "implementation",
+    "reconciliation"
+  ],
   "type": "module",
   "main": "./dist/gdsx-lib.js",
   "types": "./dist/gdsx-lib.d.ts",
