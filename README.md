@@ -29,9 +29,8 @@ If reconciliation fails, `gdsx` prints diagnostics and exits non-zero.
   - [Output](#output)
   - [Reconciliation guarantees](#reconciliation-guarantees)
   - [Development](#development)
-  - [Release checklist](#release-checklist)
+  - [Release](#release)
   - [Known limitations](#known-limitations)
-  - [TODO](#todo)
   - [License](#license)
 
 ## Motivation
@@ -94,8 +93,8 @@ gdsx [options]
 - `--base <ref>` base ref used with `--head`
 - `--head <ref>` head ref used with `--base`
 - `--range <revset>` explicit revset (for example `main...HEAD`)
-- `--include <glob>` include glob (repeatable)
-- `--exclude <glob>` exclude glob (repeatable)
+- `--include <glob>` include glob (repeatable); for renames/copies, matches against the new path
+- `--exclude <glob>` exclude glob (repeatable); for renames/copies, matches against the new path
 - `--json` structured JSON output
 - `--verbose` extra diagnostics/warnings
 
@@ -164,54 +163,28 @@ Tests run with Vitest in BDD style and use shared setup via `test/setup.js` conf
 
 Build output is emitted to `dist/`:
 
-- runtime files: `dist/gdsx.js`, `dist/gdsx-lib.js`
+- runtime files: `dist/gdsx.js`, `dist/gdsx-cli.js`, `dist/gdsx-lib.js`, `dist/git-parse.js`, `dist/classify.js`
 - generated types: `dist/gdsx-lib.d.ts`, `dist/gdsx-lib.d.ts.map`
 
 Type declarations are generated from JSDoc using `tsc -p tsconfig.typings.json`.
 
-Tests currently cover:
+## Release
 
-- category classification
-- reconciliation math
-- range handling
-- include/exclude glob behavior
-- rename handling
-- rename edge case with large unchanged body
+The release workflow is automated via `npm run release`, which bumps the minor
+version, pushes the tag, and creates a GitHub release with generated notes.
 
-## Release checklist
+Before releasing:
 
-1. Run tests:
+1. Run `npm test` and `npm run build`
+2. Verify CLI wiring: `node ./dist/gdsx.js --help`
+3. Validate publish payload: `npm pack --dry-run`
+4. Commit any outstanding changes
 
-- `npm test`
+Then run:
 
-1. Build package artifacts:
-
-- `npm run build`
-
-1. Verify CLI wiring:
-
-- `node ./dist/gdsx.js --help`
-
-1. Validate publish payload:
-
-- `npm pack --dry-run`
-
-1. Ensure package metadata is current in `package.json`.
-2. Commit changes:
-
-- `git add -A && git commit -m "Release prep"`
-
-1. Create or move release tag:
-
-- `git tag -a v0.1.0 -m "v0.1.0"`
-
-1. Push branch and tags:
-
-- `git push origin main --follow-tags`
-
-1. Optional global install test from repo URL:
-
-- `npm install -g git+https://github.com/ioncache/git-diff-stat-extended.git`
+```bash
+npm run release
+```
 
 ## Known limitations
 
@@ -219,11 +192,6 @@ Tests currently cover:
 - Non-JS/TS files are categorized as implementation unless they match test rules.
 - For files with syntax parse failures, comment classification for that side may fall back to implementation.
 
-## TODO
-
-- Define and document include/exclude semantics for rename/copy changes (old path, new path, or either).
-- Add tests for rename include/exclude edge cases once semantics are finalized.
-
 ## License
 
-MIT
+[MIT](LICENSE)
