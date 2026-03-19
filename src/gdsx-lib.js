@@ -12,8 +12,6 @@ import {
   addCategoryTotals,
   reconcileTotals,
   createEmptyCategories,
-  isTestPath,
-  isJsTsPath,
 } from "./classify.js";
 
 /**
@@ -332,15 +330,4 @@ function generateStats(options = {}) {
   };
 }
 
-export {
-  generateStats,
-  parseRawDiffZ,
-  parseShortstat,
-  formatShortstatLine,
-  isTestPath,
-  isJsTsPath,
-  parseCommentsByLine,
-  classifyPatchText,
-  reconcileTotals,
-  buildRangeArgs,
-};
+export { generateStats };
