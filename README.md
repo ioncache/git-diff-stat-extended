@@ -157,9 +157,17 @@ This makes the tool safe for scripting and CI checks.
 ```bash
 npm install
 npm test
+npm run build
 ```
 
 Tests run with Vitest in BDD style and use shared setup via `test/setup.js` configured in `vitest.config.js`.
+
+Build output is emitted to `dist/`:
+
+- runtime files: `dist/gdsx.js`, `dist/gdsx-lib.js`
+- generated types: `dist/gdsx-lib.d.ts`, `dist/gdsx-lib.d.ts.map`
+
+Type declarations are generated from JSDoc using `tsc -p tsconfig.typings.json`.
 
 Tests currently cover:
 
@@ -176,9 +184,17 @@ Tests currently cover:
 
 - `npm test`
 
+1. Build package artifacts:
+
+- `npm run build`
+
 1. Verify CLI wiring:
 
-- `./gdsx --help`
+- `node ./dist/gdsx.js --help`
+
+1. Validate publish payload:
+
+- `npm pack --dry-run`
 
 1. Ensure package metadata is current in `package.json`.
 2. Commit changes:
