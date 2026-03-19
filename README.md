@@ -3,15 +3,39 @@
 Extended git diff stats for local workflows, exposed as the `gdsx` CLI.
 
 `gdsx` preserves authoritative git totals and adds a categorized breakdown:
+
 - implementation
 - tests
 - comments
 
 It enforces strict reconciliation:
+
 - implementation.insertions + tests.insertions + comments.insertions = total.insertions
 - implementation.deletions + tests.deletions + comments.deletions = total.deletions
 
 If reconciliation fails, `gdsx` prints diagnostics and exits non-zero.
+
+- [git-diff-stat-extended](#git-diff-stat-extended)
+  - [Motivation](#motivation)
+  - [Features](#features)
+  - [Installation](#installation)
+    - [Option 1: Local development](#option-1-local-development)
+    - [Option 2: Global install from local path](#option-2-global-install-from-local-path)
+    - [Option 3: Global install from GitHub repo](#option-3-global-install-from-github-repo)
+  - [Usage](#usage)
+    - [Default comparison](#default-comparison)
+    - [Options](#options)
+    - [Examples](#examples)
+  - [Output](#output)
+  - [Reconciliation guarantees](#reconciliation-guarantees)
+  - [Development](#development)
+  - [Release checklist](#release-checklist)
+  - [Known limitations](#known-limitations)
+  - [License](#license)
+
+## Motivation
+
+`git diff --shortstat` gives trustworthy totals, but not the context needed to quickly understand where change effort went. `gdsx` keeps git as the source of truth while adding a practical implementation/test/comment breakdown that still reconciles exactly to global insertions and deletions.
 
 ## Features
 
@@ -99,12 +123,14 @@ gdsx --base main --json
 ## Output
 
 Text mode prints:
+
 1. git shortstat-style summary line
 2. category table (implementation/tests/comments + net)
 3. reconciliation line (`PASS` or `FAIL`)
 4. diagnostics block on fail
 
 JSON mode includes:
+
 - `shortstatLine`
 - `total`
 - `categories`
@@ -118,6 +144,7 @@ JSON mode includes:
 `gdsx` compares computed category sums to authoritative git totals.
 
 When mismatch occurs:
+
 - reconciliation status is `FAIL`
 - diagnostics are printed
 - process exit code is non-zero
@@ -132,6 +159,7 @@ npm test
 ```
 
 Tests currently cover:
+
 - category classification
 - reconciliation math
 - range handling
@@ -142,18 +170,29 @@ Tests currently cover:
 ## Release checklist
 
 1. Run tests:
-	- `npm test`
-2. Verify CLI wiring:
-	- `./gdsx --help`
-3. Ensure package metadata is current in `package.json`.
-4. Commit changes:
-	- `git add -A && git commit -m "Release prep"`
-5. Create or move release tag:
-	- `git tag -a v0.1.0 -m "v0.1.0"`
-6. Push branch and tags:
-	- `git push origin main --follow-tags`
-7. Optional global install test from repo URL:
-	- `npm install -g git+https://github.com/ioncache/git-diff-stat-extended.git`
+
+- `npm test`
+
+1. Verify CLI wiring:
+
+- `./gdsx --help`
+
+1. Ensure package metadata is current in `package.json`.
+2. Commit changes:
+
+- `git add -A && git commit -m "Release prep"`
+
+1. Create or move release tag:
+
+- `git tag -a v0.1.0 -m "v0.1.0"`
+
+1. Push branch and tags:
+
+- `git push origin main --follow-tags`
+
+1. Optional global install test from repo URL:
+
+- `npm install -g git+https://github.com/ioncache/git-diff-stat-extended.git`
 
 ## Known limitations
 
