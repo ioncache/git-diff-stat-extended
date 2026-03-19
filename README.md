@@ -139,6 +139,22 @@ Tests currently cover:
 - rename handling
 - rename edge case with large unchanged body
 
+## Release checklist
+
+1. Run tests:
+	- `npm test`
+2. Verify CLI wiring:
+	- `./gdsx --help`
+3. Ensure package metadata is current in `package.json`.
+4. Commit changes:
+	- `git add -A && git commit -m "Release prep"`
+5. Create or move release tag:
+	- `git tag -a v0.1.0 -m "v0.1.0"`
+6. Push branch and tags:
+	- `git push origin main --follow-tags`
+7. Optional global install test from repo URL:
+	- `npm install -g git+https://github.com/ioncache/git-diff-stat-extended.git`
+
 ## Known limitations
 
 - Comment classification is parser-backed for JS/TS-family files only.

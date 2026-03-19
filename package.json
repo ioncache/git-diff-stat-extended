@@ -12,12 +12,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/<your-username>/git-diff-stat-extended.git"
+    "url": "git+https://github.com/ioncache/git-diff-stat-extended.git"
   },
   "bugs": {
-    "url": "https://github.com/<your-username>/git-diff-stat-extended/issues"
+    "url": "https://github.com/ioncache/git-diff-stat-extended/issues"
   },
-  "homepage": "https://github.com/<your-username>/git-diff-stat-extended#readme",
+  "homepage": "https://github.com/ioncache/git-diff-stat-extended#readme",
   "scripts": {
     "test": "node --test",
     "check": "node --test"
