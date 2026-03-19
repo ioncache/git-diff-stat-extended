@@ -74,23 +74,23 @@
     ]
   },
   "dependencies": {
-    "@babel/parser": "^7.28.4",
+    "@babel/parser": "^7.29.2",
     "cli-table3": "^0.6.5",
     "picocolors": "^1.1.1",
     "picomatch": "^4.0.3",
     "yargs": "^18.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.23.0",
-    "@vitest/coverage-v8": "^3.2.4",
-    "eslint": "^9.23.0",
-    "eslint-config-prettier": "^10.1.1",
-    "globals": "^16.0.0",
+    "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^4.1.0",
+    "eslint": "^10.0.3",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.4.0",
     "husky": "^9.1.7",
-    "lint-staged": "^15.5.2",
-    "markdownlint-cli2": "^0.14.0",
-    "prettier": "^3.5.3",
-    "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "lint-staged": "^16.4.0",
+    "markdownlint-cli2": "^0.21.0",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
   }
 }
