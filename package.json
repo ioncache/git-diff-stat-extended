@@ -55,6 +55,7 @@
     "lint:md:fix": "markdownlint-cli2 --fix",
     "prepare": "husky",
     "prepack": "npm run build",
+    "release": "npm version minor && git push origin main --follow-tags && gh release create v$(node -p 'require(\"./package.json\").version') --generate-notes",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "test": "vitest run",
