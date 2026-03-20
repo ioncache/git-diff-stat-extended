@@ -1,10 +1,10 @@
-import { spawnSync } from "node:child_process";
-import path from "node:path";
-import yargs from "yargs/yargs";
-import { hideBin } from "yargs/helpers";
-import pc from "picocolors";
-import Table from "cli-table3";
-import { generateStats } from "./gdsx-lib.js";
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+import yargs from 'yargs/yargs';
+import { hideBin } from 'yargs/helpers';
+import pc from 'picocolors';
+import Table from 'cli-table3';
+import { generateStats } from './gdsx-lib.js';
 
 /**
  * @typedef {Object} CliTotals
@@ -93,8 +93,8 @@ import { generateStats } from "./gdsx-lib.js";
  * @returns {'always'|'never'|string|null} Git color setting or null when unavailable.
  */
 function readGitColorUiSetting() {
-  const result = spawnSync("git", ["config", "--get", "color.ui"], {
-    encoding: "utf8",
+  const result = spawnSync('git', ['config', '--get', 'color.ui'], {
+    encoding: 'utf8',
   });
 
   /* istanbul ignore next -- depends on local git availability/config outside deterministic unit-test control */
@@ -102,7 +102,7 @@ function readGitColorUiSetting() {
     return null;
   }
 
-  const value = (result.stdout || "").trim().toLowerCase();
+  const value = (result.stdout || '').trim().toLowerCase();
   return value || null;
 }
 
@@ -118,14 +118,14 @@ function colorsForOutput() {
 
   const forced = process.env.FORCE_COLOR;
   if (forced !== undefined) {
-    return pc.createColors(forced !== "0");
+    return pc.createColors(forced !== '0');
   }
 
   const gitColorUi = readGitColorUiSetting();
-  if (gitColorUi === "always") {
+  if (gitColorUi === 'always') {
     return pc.createColors(true);
   }
-  if (gitColorUi === "never") {
+  if (gitColorUi === 'never') {
     return pc.createColors(false);
   }
 
@@ -189,7 +189,7 @@ function fmtNet(value) {
  * @returns {string} Formatted header label.
  */
 function renderHeaderLabel(total, range) {
-  const filesWord = total.filesChanged === 1 ? "file" : "files";
+  const filesWord = total.filesChanged === 1 ? 'file' : 'files';
   return `${total.filesChanged} ${filesWord} changed  ·  ${range}`;
 }
 
@@ -206,7 +206,7 @@ function renderHeaderLabel(total, range) {
 function renderTextOutput(report, options) {
   const { total, categories, reconciliation } = report;
 
-  const categoryNames = ["implementation", "tests", "comments", "documentation", "configuration"];
+  const categoryNames = ['implementation', 'tests', 'comments', 'documentation', 'configuration'];
   const rows = categoryNames.map((name) => ({
     category: name,
     insertions: categories[name].insertions,
@@ -214,12 +214,12 @@ function renderTextOutput(report, options) {
   }));
 
   const table = new Table({
-    colAligns: ["left", "right", "right", "right"],
+    colAligns: ['left', 'right', 'right', 'right'],
     style: { head: [], border: [] },
   });
 
   table.push([{ colSpan: 4, content: renderHeaderLabel(total, report.range) }]);
-  table.push(["Category", "Insertions", "Deletions", "Net"]);
+  table.push(['Category', 'Insertions', 'Deletions', 'Net']);
 
   for (const row of rows) {
     const net = row.insertions - row.deletions;
@@ -232,7 +232,7 @@ function renderTextOutput(report, options) {
   }
 
   table.push([
-    colors.bold("total"),
+    colors.bold('total'),
     colors.bold(fmtInsertion(total.insertions)),
     colors.bold(fmtDeletion(total.deletions)),
     colors.bold(fmtNet(total.insertions - total.deletions)),
@@ -243,7 +243,7 @@ function renderTextOutput(report, options) {
   const showReconciliationLine = !reconciliation.pass || options.showReconciliation;
 
   if (showReconciliationLine) {
-    const statusLabel = reconciliation.pass ? colors.green("PASS") : colors.red("FAIL");
+    const statusLabel = reconciliation.pass ? colors.green('PASS') : colors.red('FAIL');
     console.log(
       `${statusLabel} reconciliation: expected ${fmtSigned(reconciliation.expected.insertions, reconciliation.expected.deletions)}, ` +
         `computed ${fmtSigned(reconciliation.computed.insertions, reconciliation.computed.deletions)}`,
@@ -251,8 +251,8 @@ function renderTextOutput(report, options) {
   }
 
   if (!reconciliation.pass) {
-    console.error("Diagnostics:");
-    for (const name of ["implementation", "tests", "comments", "documentation", "configuration"]) {
+    console.error('Diagnostics:');
+    for (const name of ['implementation', 'tests', 'comments', 'documentation', 'configuration']) {
       console.error(
         `  ${name}: ${fmtSigned(categories[name].insertions, categories[name].deletions)}`,
       );
@@ -271,7 +271,7 @@ function groupFileDetailsByExtension(fileDetails) {
   const groups = new Map();
 
   for (const file of fileDetails) {
-    const ext = path.extname(file.path) || "(no extension)";
+    const ext = path.extname(file.path) || '(no extension)';
     if (!groups.has(ext)) {
       groups.set(ext, {
         extension: ext,
@@ -288,15 +288,15 @@ function groupFileDetailsByExtension(fileDetails) {
 
     const group = groups.get(ext);
     group.fileCount += 1;
-    for (const cat of ["implementation", "tests", "comments", "documentation", "configuration"]) {
+    for (const cat of ['implementation', 'tests', 'comments', 'documentation', 'configuration']) {
       group.categories[cat].insertions += file.categories[cat].insertions;
       group.categories[cat].deletions += file.categories[cat].deletions;
     }
   }
 
   return [...groups.values()].sort((a, b) => {
-    if (a.extension === "(no extension)") return 1;
-    if (b.extension === "(no extension)") return -1;
+    if (a.extension === '(no extension)') return 1;
+    if (b.extension === '(no extension)') return -1;
     return a.extension.localeCompare(b.extension);
   });
 }
@@ -309,18 +309,18 @@ function groupFileDetailsByExtension(fileDetails) {
  * @returns {string} Table string with sub-row borders stripped.
  */
 function stripSubRowBorders(tableString, rowTypes) {
-  const lines = tableString.split("\n");
+  const lines = tableString.split('\n');
   const result = [];
   let contentIndex = -1;
 
   for (const line of lines) {
-    if (line.startsWith("\u2502") || line.startsWith("│")) {
+    if (line.startsWith('\u2502') || line.startsWith('│')) {
       contentIndex++;
       result.push(line);
-    } else if (line.startsWith("\u251C") || line.startsWith("├")) {
+    } else if (line.startsWith('\u251C') || line.startsWith('├')) {
       const prevType = rowTypes[contentIndex];
       const nextType = rowTypes[contentIndex + 1];
-      if (prevType === "sub" && nextType === "sub") {
+      if (prevType === 'sub' && nextType === 'sub') {
         continue;
       }
       result.push(line);
@@ -329,7 +329,7 @@ function stripSubRowBorders(tableString, rowTypes) {
     }
   }
 
-  return result.join("\n");
+  return result.join('\n');
 }
 
 /**
@@ -347,47 +347,47 @@ function renderGroupedTextOutput(report, options) {
   const extensionGroups = groupFileDetailsByExtension(report.fileDetails);
 
   const table = new Table({
-    colAligns: ["left", "right", "right", "right"],
+    colAligns: ['left', 'right', 'right', 'right'],
     style: { head: [], border: [] },
   });
 
   const rowTypes = [];
 
   table.push([{ colSpan: 4, content: renderHeaderLabel(total, report.range) }]);
-  rowTypes.push("title");
-  table.push(["Category", "Insertions", "Deletions", "Net"]);
-  rowTypes.push("header");
+  rowTypes.push('title');
+  table.push(['Category', 'Insertions', 'Deletions', 'Net']);
+  rowTypes.push('header');
 
   for (const group of extensionGroups) {
-    const filesWord = group.fileCount === 1 ? "file" : "files";
+    const filesWord = group.fileCount === 1 ? 'file' : 'files';
     table.push([
       { colSpan: 4, content: colors.bold(`${group.extension} (${group.fileCount} ${filesWord})`) },
     ]);
-    rowTypes.push("group");
+    rowTypes.push('group');
 
-    for (const cat of ["implementation", "tests", "comments", "documentation", "configuration"]) {
+    for (const cat of ['implementation', 'tests', 'comments', 'documentation', 'configuration']) {
       const ins = group.categories[cat].insertions;
       const del = group.categories[cat].deletions;
       const net = ins - del;
       table.push([`  ${cat}`, fmtInsertion(ins), fmtDeletion(del), fmtNet(net)]);
-      rowTypes.push("sub");
+      rowTypes.push('sub');
     }
   }
 
   table.push([
-    colors.bold("total"),
+    colors.bold('total'),
     colors.bold(fmtInsertion(total.insertions)),
     colors.bold(fmtDeletion(total.deletions)),
     colors.bold(fmtNet(total.insertions - total.deletions)),
   ]);
-  rowTypes.push("total");
+  rowTypes.push('total');
 
   console.log(stripSubRowBorders(table.toString(), rowTypes));
 
   const showReconciliationLine = !reconciliation.pass || options.showReconciliation;
 
   if (showReconciliationLine) {
-    const statusLabel = reconciliation.pass ? colors.green("PASS") : colors.red("FAIL");
+    const statusLabel = reconciliation.pass ? colors.green('PASS') : colors.red('FAIL');
     console.log(
       `${statusLabel} reconciliation: expected ${fmtSigned(reconciliation.expected.insertions, reconciliation.expected.deletions)}, ` +
         `computed ${fmtSigned(reconciliation.computed.insertions, reconciliation.computed.deletions)}`,
@@ -395,8 +395,8 @@ function renderGroupedTextOutput(report, options) {
   }
 
   if (!reconciliation.pass) {
-    console.error("Diagnostics:");
-    for (const name of ["implementation", "tests", "comments", "documentation", "configuration"]) {
+    console.error('Diagnostics:');
+    for (const name of ['implementation', 'tests', 'comments', 'documentation', 'configuration']) {
       console.error(
         `  ${name}: ${fmtSigned(report.categories[name].insertions, report.categories[name].deletions)}`,
       );
@@ -441,53 +441,53 @@ function renderJsonOutput(report) {
  */
 function parseArgv() {
   return yargs(hideBin(process.argv))
-    .scriptName("gdsx")
-    .usage("$0 [options]")
-    .option("base", {
-      type: "string",
-      description: "Base ref used with --head (default HEAD~1)",
+    .scriptName('gdsx')
+    .usage('$0 [options]')
+    .option('base', {
+      type: 'string',
+      description: 'Base ref used with --head (default HEAD~1)',
     })
-    .option("head", {
-      type: "string",
-      description: "Head ref used with --base (default HEAD)",
+    .option('head', {
+      type: 'string',
+      description: 'Head ref used with --base (default HEAD)',
     })
-    .option("range", {
-      type: "string",
-      description: "Git revision range expression (for example main...HEAD)",
+    .option('range', {
+      type: 'string',
+      description: 'Git revision range expression (for example main...HEAD)',
     })
-    .option("include", {
-      type: "string",
+    .option('include', {
+      type: 'string',
       array: true,
-      description: "Include glob pattern, repeatable",
+      description: 'Include glob pattern, repeatable',
     })
-    .option("exclude", {
-      type: "string",
+    .option('exclude', {
+      type: 'string',
       array: true,
-      description: "Exclude glob pattern, repeatable",
+      description: 'Exclude glob pattern, repeatable',
     })
-    .option("json", {
-      type: "boolean",
+    .option('json', {
+      type: 'boolean',
       default: false,
-      description: "Emit JSON output",
+      description: 'Emit JSON output',
     })
-    .option("verbose", {
-      type: "boolean",
+    .option('verbose', {
+      type: 'boolean',
       default: false,
-      description: "Print warnings and additional diagnostics",
+      description: 'Print warnings and additional diagnostics',
     })
-    .option("show-reconciliation", {
-      type: "boolean",
+    .option('show-reconciliation', {
+      type: 'boolean',
       default: false,
-      description: "Show reconciliation line when it passes",
+      description: 'Show reconciliation line when it passes',
     })
-    .option("group-by-extension", {
-      type: "boolean",
+    .option('group-by-extension', {
+      type: 'boolean',
       default: false,
-      description: "Group category breakdown by file extension",
+      description: 'Group category breakdown by file extension',
     })
     .check((argv) => {
       if (argv.range && (argv.base || argv.head)) {
-        throw new Error("Use either --range or --base/--head, not both.");
+        throw new Error('Use either --range or --base/--head, not both.');
       }
       return true;
     })

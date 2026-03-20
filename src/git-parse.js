@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawnSync } from 'node:child_process';
 
 /**
  * @typedef {Object} RunGitOptions
@@ -54,14 +54,14 @@ import { spawnSync } from "node:child_process";
  * console.log(result.stdout.trim());
  */
 function runGit(args, options = {}) {
-  const result = spawnSync("git", args, {
+  const result = spawnSync('git', args, {
     cwd: options.cwd || process.cwd(),
-    encoding: "utf8",
+    encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
     env: {
       ...process.env,
-      LC_ALL: "C",
-      LANG: "C",
+      LC_ALL: 'C',
+      LANG: 'C',
     },
   });
 
@@ -72,15 +72,15 @@ function runGit(args, options = {}) {
 
   /* istanbul ignore next -- exercised through real git operations; explicit failure path is delegated to git itself */
   if (result.status !== 0 && !options.allowFailure) {
-    const stderr = (result.stderr || "").trim();
-    const suffix = stderr ? `\n${stderr}` : "";
-    throw new Error(`git ${args.join(" ")} failed with exit code ${result.status}.${suffix}`);
+    const stderr = (result.stderr || '').trim();
+    const suffix = stderr ? `\n${stderr}` : '';
+    throw new Error(`git ${args.join(' ')} failed with exit code ${result.status}.${suffix}`);
   }
 
   return {
     status: result.status,
-    stdout: result.stdout || "",
-    stderr: result.stderr || "",
+    stdout: result.stdout || '',
+    stderr: result.stderr || '',
   };
 }
 
@@ -106,8 +106,8 @@ function parseRawDiffZ(rawText) {
     return [];
   }
 
-  const tokens = rawText.split("\0");
-  if (tokens[tokens.length - 1] === "") {
+  const tokens = rawText.split('\0');
+  if (tokens[tokens.length - 1] === '') {
     tokens.pop();
   }
 
@@ -131,14 +131,14 @@ function parseRawDiffZ(rawText) {
     let oldPath = null;
     let newPath = null;
 
-    if (status === "R" || status === "C") {
+    if (status === 'R' || status === 'C') {
       oldPath = tokens[i++] || null;
       newPath = tokens[i++] || null;
     } else {
       const path = tokens[i++] || null;
-      if (status === "A") {
+      if (status === 'A') {
         newPath = path;
-      } else if (status === "D") {
+      } else if (status === 'D') {
         oldPath = path;
       } else {
         oldPath = path;
@@ -155,7 +155,7 @@ function parseRawDiffZ(rawText) {
       statusCode,
       oldPath,
       newPath,
-      displayPath: newPath || oldPath || "",
+      displayPath: newPath || oldPath || '',
     });
   }
 
@@ -169,7 +169,7 @@ function parseRawDiffZ(rawText) {
  * @returns {Shortstat} Parsed shortstat fields.
  */
 function parseShortstat(shortstatText) {
-  const text = (shortstatText || "").trim();
+  const text = (shortstatText || '').trim();
   const parsed = {
     filesChanged: 0,
     insertions: 0,
@@ -207,9 +207,9 @@ function parseShortstat(shortstatText) {
  * @returns {string} Formatted shortstat summary.
  */
 function formatShortstatLine(filesChanged, insertions, deletions) {
-  const filesWord = filesChanged === 1 ? "file" : "files";
-  const insertionsWord = insertions === 1 ? "insertion" : "insertions";
-  const deletionsWord = deletions === 1 ? "deletion" : "deletions";
+  const filesWord = filesChanged === 1 ? 'file' : 'files';
+  const insertionsWord = insertions === 1 ? 'insertion' : 'insertions';
+  const deletionsWord = deletions === 1 ? 'deletion' : 'deletions';
   return `${filesChanged} ${filesWord} changed, ${insertions} ${insertionsWord}(+), ${deletions} ${deletionsWord}(-)`;
 }
 
@@ -240,7 +240,7 @@ function buildRangeArgs(input) {
   if (input.range) {
     return [input.range];
   }
-  return [input.base || "HEAD~1", input.head || "HEAD"];
+  return [input.base || 'HEAD~1', input.head || 'HEAD'];
 }
 
 export {

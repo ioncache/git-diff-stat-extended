@@ -1,5 +1,5 @@
-import * as babelParser from "@babel/parser";
-import { zeroSha, parseHunkHeader } from "./git-parse.js";
+import * as babelParser from '@babel/parser';
+import { zeroSha, parseHunkHeader } from './git-parse.js';
 
 /**
  * @typedef {import('./git-parse.js').RawDiffEntry} RawDiffEntry
@@ -41,7 +41,7 @@ import { zeroSha, parseHunkHeader } from "./git-parse.js";
  * @returns {boolean} True when the path matches test conventions.
  */
 function isTestPath(path) {
-  const lower = (path || "").toLowerCase();
+  const lower = (path || '').toLowerCase();
   if (!lower) {
     return false;
   }
@@ -57,7 +57,7 @@ function isTestPath(path) {
  * @returns {boolean} True for JS or TS family extensions.
  */
 function isJsTsPath(path) {
-  return /\.(js|jsx|ts|tsx|mjs|cjs|mts|cts)$/i.test(path || "");
+  return /\.(js|jsx|ts|tsx|mjs|cjs|mts|cts)$/i.test(path || '');
 }
 
 /**
@@ -67,14 +67,14 @@ function isJsTsPath(path) {
  * @returns {boolean} True when the path matches documentation conventions.
  */
 function isDocPath(path) {
-  const lower = (path || "").toLowerCase();
+  const lower = (path || '').toLowerCase();
   if (!lower) {
     return false;
   }
   if (/\.(md|txt|rst|adoc)$/i.test(lower)) {
     return true;
   }
-  const basename = lower.split("/").pop() || "";
+  const basename = lower.split('/').pop() || '';
   return /^(license|licence|changelog|changes|authors|contributors|readme)$/i.test(basename);
 }
 
@@ -85,14 +85,14 @@ function isDocPath(path) {
  * @returns {boolean} True when the path matches configuration conventions.
  */
 function isConfigPath(path) {
-  const lower = (path || "").toLowerCase();
+  const lower = (path || '').toLowerCase();
   if (!lower) {
     return false;
   }
   if (/\.(json|jsonc|yaml|yml|toml|ini|env|properties)$/i.test(lower)) {
     return true;
   }
-  const basename = lower.split("/").pop() || "";
+  const basename = lower.split('/').pop() || '';
   if (
     /^\.(editorconfig|gitignore|gitattributes|npmrc|nvmrc|prettierrc|eslintrc|stylelintrc|babelrc)$/i.test(
       basename,
@@ -114,23 +114,23 @@ function isConfigPath(path) {
 function parseCommentsByLine(sourceText, filePath) {
   const commentsByLine = new Set();
 
-  const ext = (filePath.split(".").pop() || "").toLowerCase();
-  const isTs = ext === "ts" || ext === "tsx" || ext === "mts" || ext === "cts";
-  const isJsxLike = ext === "jsx" || ext === "tsx";
+  const ext = (filePath.split('.').pop() || '').toLowerCase();
+  const isTs = ext === 'ts' || ext === 'tsx' || ext === 'mts' || ext === 'cts';
+  const isJsxLike = ext === 'jsx' || ext === 'tsx';
 
   const pluginSets = [];
   if (isTs && isJsxLike) {
-    pluginSets.push(["typescript", "jsx"]);
-    pluginSets.push(["typescript"]);
+    pluginSets.push(['typescript', 'jsx']);
+    pluginSets.push(['typescript']);
   } else if (isTs) {
-    pluginSets.push(["typescript"]);
-    pluginSets.push(["typescript", "jsx"]);
+    pluginSets.push(['typescript']);
+    pluginSets.push(['typescript', 'jsx']);
   } else if (isJsxLike) {
-    pluginSets.push(["jsx"]);
+    pluginSets.push(['jsx']);
     pluginSets.push([]);
   } else {
     pluginSets.push([]);
-    pluginSets.push(["jsx"]);
+    pluginSets.push(['jsx']);
   }
 
   let ast = null;
@@ -139,7 +139,7 @@ function parseCommentsByLine(sourceText, filePath) {
   for (const plugins of pluginSets) {
     try {
       ast = babelParser.parse(sourceText, {
-        sourceType: "unambiguous",
+        sourceType: 'unambiguous',
         plugins,
         errorRecovery: true,
       });
@@ -150,7 +150,7 @@ function parseCommentsByLine(sourceText, filePath) {
   }
 
   if (!ast) {
-    const reason = lastError ? lastError.message : "unknown parser error";
+    const reason = lastError ? lastError.message : 'unknown parser error';
     throw new Error(`Unable to parse ${filePath} for comments: ${reason}`);
   }
 
@@ -177,34 +177,34 @@ function parseCommentsByLine(sourceText, filePath) {
  * @returns {'implementation'|'tests'|'comments'|'documentation'|'configuration'} Line classification category.
  */
 function classifyLine(side, lineNumber, entry, commentLineProvider) {
-  const sidePath = side === "old" ? entry.oldPath : entry.newPath;
+  const sidePath = side === 'old' ? entry.oldPath : entry.newPath;
   if (!sidePath) {
-    return "implementation";
+    return 'implementation';
   }
 
   if (isTestPath(sidePath)) {
-    return "tests";
+    return 'tests';
   }
 
   if (isDocPath(sidePath)) {
-    return "documentation";
+    return 'documentation';
   }
 
   if (isConfigPath(sidePath)) {
-    return "configuration";
+    return 'configuration';
   }
 
   if (isJsTsPath(sidePath)) {
-    const sideSha = side === "old" ? entry.oldSha : entry.newSha;
+    const sideSha = side === 'old' ? entry.oldSha : entry.newSha;
     if (!zeroSha(sideSha)) {
       const commentLines = commentLineProvider(sideSha, sidePath);
       if (commentLines.has(lineNumber)) {
-        return "comments";
+        return 'comments';
       }
     }
   }
 
-  return "implementation";
+  return 'implementation';
 }
 
 /**
@@ -228,7 +228,7 @@ function classifyPatchText(patchText, entry, commentLineProvider) {
     return result;
   }
 
-  const lines = patchText.split("\n");
+  const lines = patchText.split('\n');
   let oldLine = 0;
   let newLine = 0;
   let inHunk = false;
@@ -246,21 +246,21 @@ function classifyPatchText(patchText, entry, commentLineProvider) {
       continue;
     }
 
-    if (line.startsWith("+") && !line.startsWith("+++")) {
-      const category = classifyLine("new", newLine, entry, commentLineProvider);
+    if (line.startsWith('+') && !line.startsWith('+++')) {
+      const category = classifyLine('new', newLine, entry, commentLineProvider);
       result[category].insertions += 1;
       newLine += 1;
       continue;
     }
 
-    if (line.startsWith("-") && !line.startsWith("---")) {
-      const category = classifyLine("old", oldLine, entry, commentLineProvider);
+    if (line.startsWith('-') && !line.startsWith('---')) {
+      const category = classifyLine('old', oldLine, entry, commentLineProvider);
       result[category].deletions += 1;
       oldLine += 1;
       continue;
     }
 
-    if (line.startsWith(" ")) {
+    if (line.startsWith(' ')) {
       oldLine += 1;
       newLine += 1;
     }
@@ -278,11 +278,11 @@ function classifyPatchText(patchText, entry, commentLineProvider) {
  */
 function addCategoryTotals(target, delta) {
   for (const category of [
-    "implementation",
-    "tests",
-    "comments",
-    "documentation",
-    "configuration",
+    'implementation',
+    'tests',
+    'comments',
+    'documentation',
+    'configuration',
   ]) {
     target[category].insertions += delta[category].insertions;
     target[category].deletions += delta[category].deletions;
@@ -300,11 +300,11 @@ function reconcileTotals(total, categories) {
   let computedInsertions = 0;
   let computedDeletions = 0;
   for (const category of [
-    "implementation",
-    "tests",
-    "comments",
-    "documentation",
-    "configuration",
+    'implementation',
+    'tests',
+    'comments',
+    'documentation',
+    'configuration',
   ]) {
     computedInsertions += categories[category].insertions;
     computedDeletions += categories[category].deletions;

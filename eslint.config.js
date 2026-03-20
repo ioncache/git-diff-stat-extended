@@ -1,17 +1,17 @@
-import js from "@eslint/js";
-import globals from "globals";
-import eslintConfigPrettier from "eslint-config-prettier";
+import js from '@eslint/js';
+import globals from 'globals';
+import eslintConfigPrettier from 'eslint-config-prettier';
 
 export default [
   {
-    ignores: ["dist/**", "coverage/**", "node_modules/**"],
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**'],
   },
   js.configs.recommended,
   {
-    files: ["**/*.js", "gdsx"],
+    files: ['**/*.js', 'gdsx'],
     languageOptions: {
-      ecmaVersion: "latest",
-      sourceType: "module",
+      ecmaVersion: 'latest',
+      sourceType: 'module',
       globals: {
         ...globals.node,
       },

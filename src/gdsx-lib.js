@@ -1,18 +1,18 @@
-import picomatch from "picomatch";
+import picomatch from 'picomatch';
 import {
   runGit,
   parseRawDiffZ,
   parseShortstat,
   formatShortstatLine,
   buildRangeArgs,
-} from "./git-parse.js";
+} from './git-parse.js';
 import {
   parseCommentsByLine,
   classifyPatchText,
   addCategoryTotals,
   reconcileTotals,
   createEmptyCategories,
-} from "./classify.js";
+} from './classify.js';
 
 /**
  * @typedef {import('./git-parse.js').RawDiffEntry} RawDiffEntry
@@ -156,25 +156,25 @@ function generateStats(options = {}) {
   const excludeMatchers = buildMatchers(excludePatterns);
   const cwd = options.cwd || process.cwd();
   const hasExplicitRange = Boolean(options.range || options.base || options.head);
-  const EMPTY_TREE_SHA = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+  const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
   let rangeArgs = buildRangeArgs(options);
-  let effectiveRange = options.range || `${options.base || "HEAD~1"}..${options.head || "HEAD"}`;
+  let effectiveRange = options.range || `${options.base || 'HEAD~1'}..${options.head || 'HEAD'}`;
 
   if (!hasExplicitRange) {
-    const hasParentCommit = runGit(["rev-parse", "--verify", "--quiet", "HEAD~1"], {
+    const hasParentCommit = runGit(['rev-parse', '--verify', '--quiet', 'HEAD~1'], {
       cwd,
       allowFailure: true,
     });
 
     if (hasParentCommit.status !== 0) {
-      const headRef = options.head || "HEAD";
+      const headRef = options.head || 'HEAD';
       rangeArgs = [EMPTY_TREE_SHA, headRef];
       effectiveRange = `${EMPTY_TREE_SHA}..${headRef}`;
     }
   }
 
-  const rawArgs = ["diff", "--raw", "-z", "--find-renames", "--no-ext-diff", ...rangeArgs];
+  const rawArgs = ['diff', '--raw', '-z', '--find-renames', '--no-ext-diff', ...rangeArgs];
   const rawResult = runGit(rawArgs, { cwd });
   const rawEntries = parseRawDiffZ(rawResult.stdout);
 
@@ -188,13 +188,13 @@ function generateStats(options = {}) {
     filesChanged: 0,
     insertions: 0,
     deletions: 0,
-    raw: "",
+    raw: '',
   };
 
   if (selectedEntries.length > 0) {
     const pathspecSet = new Set();
     for (const entry of selectedEntries) {
-      if (entry.status === "R" || entry.status === "C") {
+      if (entry.status === 'R' || entry.status === 'C') {
         if (entry.oldPath) {
           pathspecSet.add(`:(literal)${entry.oldPath}`);
         }
@@ -210,12 +210,12 @@ function generateStats(options = {}) {
     }
 
     const shortstatArgs = [
-      "diff",
-      "--shortstat",
-      "--find-renames",
-      "--no-ext-diff",
+      'diff',
+      '--shortstat',
+      '--find-renames',
+      '--no-ext-diff',
       ...rangeArgs,
-      "--",
+      '--',
       ...pathspecSet,
     ];
     const shortstatResult = runGit(shortstatArgs, { cwd });
@@ -237,7 +237,7 @@ function generateStats(options = {}) {
         return blobTextCache.get(sha);
       }
 
-      const result = runGit(["cat-file", "-p", sha], {
+      const result = runGit(['cat-file', '-p', sha], {
         cwd,
         allowFailure: true,
       });
@@ -285,7 +285,7 @@ function generateStats(options = {}) {
       }
 
       const patchPathspecs = [];
-      if ((entry.status === "R" || entry.status === "C") && entry.oldPath && entry.newPath) {
+      if ((entry.status === 'R' || entry.status === 'C') && entry.oldPath && entry.newPath) {
         patchPathspecs.push(`:(literal)${entry.oldPath}`);
         patchPathspecs.push(`:(literal)${entry.newPath}`);
       } else {
@@ -293,13 +293,13 @@ function generateStats(options = {}) {
       }
 
       const patchArgs = [
-        "diff",
-        "--no-color",
-        "--unified=0",
-        "--find-renames",
-        "--no-ext-diff",
+        'diff',
+        '--no-color',
+        '--unified=0',
+        '--find-renames',
+        '--no-ext-diff',
         ...rangeArgs,
-        "--",
+        '--',
         ...patchPathspecs,
       ];
 

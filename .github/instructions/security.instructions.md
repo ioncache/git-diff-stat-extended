@@ -1,5 +1,5 @@
 ---
-applyTo: "**"
+applyTo: '**'
 ---
 
 # Security Guidelines
@@ -21,18 +21,18 @@ applyTo: "**"
 ```javascript
 // Good: Validate request before business logic
 const schema = {
-  type: "object",
-  required: ["email", "password"],
+  type: 'object',
+  required: ['email', 'password'],
   properties: {
-    email: { type: "string", format: "email" },
-    password: { type: "string", minLength: 8 },
+    email: { type: 'string', format: 'email' },
+    password: { type: 'string', minLength: 8 },
   },
 };
 
 function createUserHandler(request, response) {
   const { valid, errors } = validate(schema, request.body);
   if (!valid) {
-    return response.status(400).json({ error: "Invalid request payload" });
+    return response.status(400).json({ error: 'Invalid request payload' });
   }
 
   const { email, password } = request.body;
@@ -52,10 +52,10 @@ function createUserHandlerUnsafe(request, response) {
 
 ```javascript
 function applySecurityHeaders(response) {
-  response.setHeader("X-Content-Type-Options", "nosniff");
-  response.setHeader("X-Frame-Options", "DENY");
-  response.setHeader("Referrer-Policy", "no-referrer");
-  response.setHeader("Content-Security-Policy", "default-src 'self'");
+  response.setHeader('X-Content-Type-Options', 'nosniff');
+  response.setHeader('X-Frame-Options', 'DENY');
+  response.setHeader('Referrer-Policy', 'no-referrer');
+  response.setHeader('Content-Security-Policy', "default-src 'self'");
 }
 ```
 
@@ -66,7 +66,7 @@ function applySecurityHeaders(response) {
 ```javascript
 function parseStrictId(id) {
   if (!/^[a-f0-9]{24}$/i.test(id)) {
-    throw new Error("Invalid ID format");
+    throw new Error('Invalid ID format');
   }
   return id.toLowerCase();
 }
@@ -86,15 +86,15 @@ function findById(id, repository) {
 **Always verify webhook signatures before processing payloads:**
 
 ```javascript
-import crypto from "node:crypto";
+import crypto from 'node:crypto';
 
 function verifyWebhookSignature({ payload, signature, secret }) {
-  const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex");
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature || ""));
+  const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature || ''));
 }
 
 function handleWebhook(request, response, secret) {
-  const signature = request.headers["x-signature"];
+  const signature = request.headers['x-signature'];
   const valid = verifyWebhookSignature({
     payload: request.rawBody,
     signature,
@@ -102,7 +102,7 @@ function handleWebhook(request, response, secret) {
   });
 
   if (!valid) {
-    return response.status(401).json({ error: "Invalid signature" });
+    return response.status(401).json({ error: 'Invalid signature' });
   }
 
   return response.status(200).json({ ok: true });
@@ -116,19 +116,19 @@ function handleWebhook(request, response, secret) {
 ```javascript
 function requireAuth(request) {
   if (!request.user) {
-    throw new Error("Unauthorized");
+    throw new Error('Unauthorized');
   }
 }
 
 function requirePermission(user, permission) {
   if (!user.permissions.includes(permission)) {
-    throw new Error("Forbidden");
+    throw new Error('Forbidden');
   }
 }
 
 function createAdminUser(request, response) {
   requireAuth(request);
-  requirePermission(request.user, "users:create");
+  requirePermission(request.user, 'users:create');
   return response.status(201).json({ ok: true });
 }
 ```
@@ -158,13 +158,13 @@ function createRateLimiter({ max, windowMs }) {
 
 ```javascript
 function sanitizeInput(value) {
-  if (typeof value === "string") {
-    return value.replace(/[<>]/g, "");
+  if (typeof value === 'string') {
+    return value.replace(/[<>]/g, '');
   }
   if (Array.isArray(value)) {
     return value.map(sanitizeInput);
   }
-  if (value && typeof value === "object") {
+  if (value && typeof value === 'object') {
     const next = {};
     for (const [key, item] of Object.entries(value)) {
       next[key] = sanitizeInput(item);
@@ -180,11 +180,11 @@ function sanitizeInput(value) {
 **Define and validate all required environment variables at startup:**
 
 ```javascript
-const requiredEnv = ["JWT_SIGNING_KEY", "WEBHOOK_SIGNING_SECRET"];
+const requiredEnv = ['JWT_SIGNING_KEY', 'WEBHOOK_SIGNING_SECRET'];
 
 function validateEnvironment(env = process.env) {
   for (const key of requiredEnv) {
-    if (!env[key] || env[key].trim() === "") {
+    if (!env[key] || env[key].trim() === '') {
       throw new Error(`Missing required environment variable: ${key}`);
     }
   }
@@ -199,8 +199,8 @@ function validateEnvironment(env = process.env) {
 try {
   await riskyOperation();
 } catch (error) {
-  logger.error({ error }, "Operation failed");
-  return response.status(500).json({ error: "Internal server error" });
+  logger.error({ error }, 'Operation failed');
+  return response.status(500).json({ error: 'Internal server error' });
 }
 ```
 

@@ -1,4 +1,4 @@
 #!/usr/bin/env node
-import { main } from "./src/gdsx-cli.js";
+import { main } from './src/gdsx-cli.js';
 
 main();

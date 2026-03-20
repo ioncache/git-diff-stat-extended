@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from 'vitest';
 
 import {
   classifyPatchText,
@@ -7,11 +7,11 @@ import {
   isConfigPath,
   parseCommentsByLine,
   reconcileTotals,
-} from "../src/classify.js";
+} from '../src/classify.js';
 
-describe("classify", () => {
-  describe("reconcileTotals", () => {
-    it("should report mismatch details when reconciliation fails", () => {
+describe('classify', () => {
+  describe('reconcileTotals', () => {
+    it('should report mismatch details when reconciliation fails', () => {
       // Arrange
       const total = { insertions: 5, deletions: 3 };
       const categories = {
@@ -32,15 +32,15 @@ describe("classify", () => {
     });
   });
 
-  describe("classifyPatchText", () => {
-    it("should keep totals unchanged for hunk context-only lines", () => {
+  describe('classifyPatchText', () => {
+    it('should keep totals unchanged for hunk context-only lines', () => {
       // Arrange
-      const patch = ["@@ -1,1 +1,1 @@", " unchanged"].join("\n");
+      const patch = ['@@ -1,1 +1,1 @@', ' unchanged'].join('\n');
       const entry = {
-        oldPath: "src/value.js",
-        newPath: "src/value.js",
-        oldSha: "1111111",
-        newSha: "2222222",
+        oldPath: 'src/value.js',
+        newPath: 'src/value.js',
+        oldSha: '1111111',
+        newSha: '2222222',
       };
 
       // Act
@@ -56,17 +56,17 @@ describe("classify", () => {
       });
     });
 
-    it("should return empty category totals when patch text is empty", () => {
+    it('should return empty category totals when patch text is empty', () => {
       // Arrange
       const entry = {
-        oldPath: "src/value.js",
-        newPath: "src/value.js",
-        oldSha: "1111111",
-        newSha: "2222222",
+        oldPath: 'src/value.js',
+        newPath: 'src/value.js',
+        oldSha: '1111111',
+        newSha: '2222222',
       };
 
       // Act
-      const result = classifyPatchText("", entry, () => new Set());
+      const result = classifyPatchText('', entry, () => new Set());
 
       // Assert
       expect(result).toEqual({
@@ -78,14 +78,14 @@ describe("classify", () => {
       });
     });
 
-    it("should classify as implementation when diff side path is missing", () => {
+    it('should classify as implementation when diff side path is missing', () => {
       // Arrange
-      const patch = ["@@ -0,0 +1,1 @@", "+const value = 1;"].join("\n");
+      const patch = ['@@ -0,0 +1,1 @@', '+const value = 1;'].join('\n');
       const entry = {
-        oldPath: "src/value.js",
+        oldPath: 'src/value.js',
         newPath: null,
-        oldSha: "1111111",
-        newSha: "0000000",
+        oldSha: '1111111',
+        newSha: '0000000',
       };
 
       // Act
@@ -98,50 +98,50 @@ describe("classify", () => {
     });
   });
 
-  describe("parseCommentsByLine", () => {
-    it("should parse comments in TSX files using the TSX plugin path", () => {
+  describe('parseCommentsByLine', () => {
+    it('should parse comments in TSX files using the TSX plugin path', () => {
       // Arrange
       const source = [
-        "export function Widget() {",
-        "  return (",
-        "    <div>",
-        "      {/* inline tsx comment */}",
-        "    </div>",
-        "  );",
-        "}",
-        "",
-      ].join("\n");
+        'export function Widget() {',
+        '  return (',
+        '    <div>',
+        '      {/* inline tsx comment */}',
+        '    </div>',
+        '  );',
+        '}',
+        '',
+      ].join('\n');
 
       // Act
-      const lines = parseCommentsByLine(source, "src/widget.tsx");
+      const lines = parseCommentsByLine(source, 'src/widget.tsx');
 
       // Assert
       expect(lines.has(4)).toBe(true);
     });
 
-    it("should parse comments in JSX files using the JSX plugin path", () => {
+    it('should parse comments in JSX files using the JSX plugin path', () => {
       // Arrange
       const source = [
-        "export const view = (",
-        "  <section>",
-        "    {/* inline jsx comment */}",
-        "  </section>",
-        ");",
-        "",
-      ].join("\n");
+        'export const view = (',
+        '  <section>',
+        '    {/* inline jsx comment */}',
+        '  </section>',
+        ');',
+        '',
+      ].join('\n');
 
       // Act
-      const lines = parseCommentsByLine(source, "src/view.jsx");
+      const lines = parseCommentsByLine(source, 'src/view.jsx');
 
       // Assert
       expect(lines.has(3)).toBe(true);
     });
   });
 
-  describe("isTestPath", () => {
-    it("should treat empty paths as non-test paths", () => {
+  describe('isTestPath', () => {
+    it('should treat empty paths as non-test paths', () => {
       // Arrange
-      const filePath = "";
+      const filePath = '';
 
       // Act
       const result = isTestPath(filePath);
@@ -151,65 +151,65 @@ describe("classify", () => {
     });
   });
 
-  describe("isDocPath", () => {
-    it("should match markdown files", () => {
-      expect(isDocPath("README.md")).toBe(true);
-      expect(isDocPath("docs/guide.md")).toBe(true);
+  describe('isDocPath', () => {
+    it('should match markdown files', () => {
+      expect(isDocPath('README.md')).toBe(true);
+      expect(isDocPath('docs/guide.md')).toBe(true);
     });
 
-    it("should match text and restructured text files", () => {
-      expect(isDocPath("notes.txt")).toBe(true);
-      expect(isDocPath("docs/guide.rst")).toBe(true);
-      expect(isDocPath("docs/guide.adoc")).toBe(true);
+    it('should match text and restructured text files', () => {
+      expect(isDocPath('notes.txt')).toBe(true);
+      expect(isDocPath('docs/guide.rst')).toBe(true);
+      expect(isDocPath('docs/guide.adoc')).toBe(true);
     });
 
-    it("should match bare documentation filenames", () => {
-      expect(isDocPath("LICENSE")).toBe(true);
-      expect(isDocPath("CHANGELOG")).toBe(true);
-      expect(isDocPath("AUTHORS")).toBe(true);
-      expect(isDocPath("CONTRIBUTORS")).toBe(true);
+    it('should match bare documentation filenames', () => {
+      expect(isDocPath('LICENSE')).toBe(true);
+      expect(isDocPath('CHANGELOG')).toBe(true);
+      expect(isDocPath('AUTHORS')).toBe(true);
+      expect(isDocPath('CONTRIBUTORS')).toBe(true);
     });
 
-    it("should not match source files", () => {
-      expect(isDocPath("src/app.js")).toBe(false);
-      expect(isDocPath("src/app.ts")).toBe(false);
+    it('should not match source files', () => {
+      expect(isDocPath('src/app.js')).toBe(false);
+      expect(isDocPath('src/app.ts')).toBe(false);
     });
 
-    it("should treat empty paths as non-doc paths", () => {
-      expect(isDocPath("")).toBe(false);
+    it('should treat empty paths as non-doc paths', () => {
+      expect(isDocPath('')).toBe(false);
       expect(isDocPath(null)).toBe(false);
     });
   });
 
-  describe("isConfigPath", () => {
-    it("should match config file extensions", () => {
-      expect(isConfigPath("package.json")).toBe(true);
-      expect(isConfigPath("config.yaml")).toBe(true);
-      expect(isConfigPath("config.yml")).toBe(true);
-      expect(isConfigPath("config.toml")).toBe(true);
-      expect(isConfigPath(".env")).toBe(true);
+  describe('isConfigPath', () => {
+    it('should match config file extensions', () => {
+      expect(isConfigPath('package.json')).toBe(true);
+      expect(isConfigPath('config.yaml')).toBe(true);
+      expect(isConfigPath('config.yml')).toBe(true);
+      expect(isConfigPath('config.toml')).toBe(true);
+      expect(isConfigPath('.env')).toBe(true);
     });
 
-    it("should match dotfile config names", () => {
-      expect(isConfigPath(".editorconfig")).toBe(true);
-      expect(isConfigPath(".gitignore")).toBe(true);
-      expect(isConfigPath(".gitattributes")).toBe(true);
-      expect(isConfigPath(".npmrc")).toBe(true);
-      expect(isConfigPath(".prettierrc")).toBe(true);
+    it('should match dotfile config names', () => {
+      expect(isConfigPath('.editorconfig')).toBe(true);
+      expect(isConfigPath('.gitignore')).toBe(true);
+      expect(isConfigPath('.gitattributes')).toBe(true);
+      expect(isConfigPath('.npmrc')).toBe(true);
+      expect(isConfigPath('.prettierrc')).toBe(true);
     });
 
-    it("should match files with config in the name", () => {
-      expect(isConfigPath("eslint.config.js")).toBe(true);
-      expect(isConfigPath("vitest.config.js")).toBe(true);
+    it('should match files with config in the name', () => {
+      expect(isConfigPath('eslint.config.js')).toBe(true);
+      expect(isConfigPath('vitest.config.js')).toBe(true);
     });
 
-    it("should not match source files", () => {
-      expect(isConfigPath("src/app.js")).toBe(false);
-      expect(isConfigPath("src/app.ts")).toBe(false);
+    it('should not match source files', () => {
+      expect(isConfigPath('src/app.js')).toBe(false);
+      expect(isConfigPath('src/app.ts')).toBe(false);
     });
 
-    it("should treat empty paths as non-config paths", () => {
-      expect(isConfigPath("")).toBe(false);
+    it('should treat empty paths as non-config paths', () => {
+      expect(isConfigPath('')).toBe(false);
       expect(isConfigPath(null)).toBe(false);
     });
   });
