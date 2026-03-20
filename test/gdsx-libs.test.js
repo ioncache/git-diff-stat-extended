@@ -3,8 +3,7 @@ import path from 'node:path';
 import { describe, it, expect } from 'vitest';
 
 import { generateStats } from '../src/gdsx-lib.js';
-
-const { run, writeFile, commitAll, createRepo } = globalThis.gdsxTestUtils;
+import { run, writeFile, commitAll, createRepo } from './setup.js';
 
 describe('gdsx-lib', () => {
   it('classifies implementation, tests, and comments while reconciling totals', () => {

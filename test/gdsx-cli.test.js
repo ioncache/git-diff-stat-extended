@@ -1,8 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 import { main as runCliMain } from '../src/gdsx-cli.js';
-
-const { writeFile, commitAll, createRepo } = globalThis.gdsxTestUtils;
+import { writeFile, commitAll, createRepo } from './setup.js';
 
 /**
  * Creates a minimal report object suitable for CLI tests.

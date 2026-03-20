@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-
-const { createRepo } = globalThis.gdsxTestUtils;
+import { createRepo } from './setup.js';
 
 /**
  * Creates a minimal report object suitable for rendering tests.

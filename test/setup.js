@@ -41,9 +41,4 @@ afterEach(() => {
   createdRepos.clear();
 });
 
-globalThis.gdsxTestUtils = {
-  run,
-  writeFile,
-  commitAll,
-  createRepo,
-};
+export { run, writeFile, commitAll, createRepo };
