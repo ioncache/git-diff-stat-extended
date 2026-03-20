@@ -96,6 +96,120 @@ describe('classify', () => {
       expect(result.tests.insertions).toBe(0);
       expect(result.comments.insertions).toBe(0);
     });
+
+    it('should classify insertions as comments when provider returns matching line', () => {
+      // Arrange
+      const patch = ['@@ -0,0 +1,2 @@', '+// a comment', '+const x = 1;'].join('\n');
+      const entry = {
+        oldPath: null,
+        newPath: 'src/value.js',
+        oldSha: '0000000',
+        newSha: 'abc1234',
+      };
+      const commentLineProvider = () => new Set([1]);
+
+      // Act
+      const result = classifyPatchText(patch, entry, commentLineProvider);
+
+      // Assert
+      expect(result.comments.insertions).toBe(1);
+      expect(result.implementation.insertions).toBe(1);
+    });
+
+    it('should skip comment lookup when SHA is all zeros', () => {
+      // Arrange
+      const patch = ['@@ -0,0 +1,1 @@', '+// looks like a comment'].join('\n');
+      const entry = {
+        oldPath: null,
+        newPath: 'src/value.js',
+        oldSha: '0000000',
+        newSha: '0000000',
+      };
+      let providerCalled = false;
+      const commentLineProvider = () => {
+        providerCalled = true;
+        return new Set([1]);
+      };
+
+      // Act
+      const result = classifyPatchText(patch, entry, commentLineProvider);
+
+      // Assert
+      expect(providerCalled).toBe(false);
+      expect(result.implementation.insertions).toBe(1);
+      expect(result.comments.insertions).toBe(0);
+    });
+
+    it('should classify deletions using old side path and SHA', () => {
+      // Arrange
+      const patch = ['@@ -1,2 +0,0 @@', '-// old comment', '-const x = 1;'].join('\n');
+      const entry = {
+        oldPath: 'src/value.js',
+        newPath: 'src/value.js',
+        oldSha: 'abc1234',
+        newSha: 'def5678',
+      };
+      const commentLineProvider = () => new Set([1]);
+
+      // Act
+      const result = classifyPatchText(patch, entry, commentLineProvider);
+
+      // Assert
+      expect(result.comments.deletions).toBe(1);
+      expect(result.implementation.deletions).toBe(1);
+    });
+
+    it('should classify test file changes into the tests category', () => {
+      // Arrange
+      const patch = ['@@ -0,0 +1,1 @@', "+it('works', () => {});"].join('\n');
+      const entry = {
+        oldPath: null,
+        newPath: 'test/app.test.js',
+        oldSha: '0000000',
+        newSha: 'abc1234',
+      };
+
+      // Act
+      const result = classifyPatchText(patch, entry, () => new Set());
+
+      // Assert
+      expect(result.tests.insertions).toBe(1);
+      expect(result.implementation.insertions).toBe(0);
+    });
+
+    it('should classify documentation file changes into the documentation category', () => {
+      // Arrange
+      const patch = ['@@ -0,0 +1,1 @@', '+# New docs'].join('\n');
+      const entry = {
+        oldPath: null,
+        newPath: 'README.md',
+        oldSha: '0000000',
+        newSha: 'abc1234',
+      };
+
+      // Act
+      const result = classifyPatchText(patch, entry, () => new Set());
+
+      // Assert
+      expect(result.documentation.insertions).toBe(1);
+    });
+
+    it('should classify configuration file changes into the configuration category', () => {
+      // Arrange
+      const patch = ['@@ -0,0 +1,1 @@', '+{"name": "test"}'].join('\n');
+      const entry = {
+        oldPath: null,
+        newPath: 'package.json',
+        oldSha: '0000000',
+        newSha: 'abc1234',
+      };
+
+      // Act
+      const result = classifyPatchText(patch, entry, () => new Set());
+
+      // Assert
+      expect(result.configuration.insertions).toBe(1);
+    });
   });
 
   describe('parseCommentsByLine', () => {
