@@ -58,13 +58,13 @@ If reconciliation fails, `gdsx` prints diagnostics and exits non-zero.
 Each changed line is assigned to exactly one category. Classification is
 determined by file path, evaluated in priority order:
 
-| Priority | Category           | Matches                                                                                                                                                                                                                                                                     |
-| -------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1        | **tests**          | Files inside `test/`, `tests/`, or `__tests__/` directories, or filenames containing `.test.*` or `.spec.*`                                                                                                                                                                 |
-| 2        | **documentation**  | `.md`, `.txt`, `.rst`, `.adoc` extensions, or bare filenames `LICENSE`, `LICENCE`, `CHANGELOG`, `CHANGES`, `AUTHORS`, `CONTRIBUTORS`, `README`                                                                                                                              |
-| 3        | **configuration**  | `.json`, `.jsonc`, `.yaml`, `.yml`, `.toml`, `.ini`, `.env`, `.properties` extensions; dotfiles `.editorconfig`, `.gitignore`, `.gitattributes`, `.npmrc`, `.nvmrc`, `.prettierrc`, `.eslintrc`, `.stylelintrc`, `.babelrc`; or filenames matching `*.config.*` or `*.rc.*` |
-| 4        | **comments**       | Lines identified as comments by `@babel/parser` inside JS/TS files (`.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.cjs`, `.mts`, `.cts`)                                                                                                                                           |
-| 5        | **implementation** | Everything else (default)                                                                                                                                                                                                                                                   |
+| Priority | Category           | Matches                                                                                                                                                                         |
+| -------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1        | **tests**          | Files inside `test/`, `tests/`, or `__tests__/` directories, or filenames containing `.test.*` or `.spec.*`                                                                     |
+| 2        | **documentation**  | `.md`, `.txt`, `.rst`, `.adoc` extensions, or bare filenames `LICENSE`, `LICENCE`, `CHANGELOG`, `CHANGES`, `AUTHORS`, `CONTRIBUTORS`, `README`                                  |
+| 3        | **configuration**  | `.json`, `.jsonc`, `.yaml`, `.yml`, `.toml`, `.ini`, `.env`, `.properties` extensions; any dotfile (basename starting with `.`); or filenames matching `*.config.*` or `*.rc.*` |
+| 4        | **comments**       | Lines identified as comments by `@babel/parser` inside JS/TS files (`.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.cjs`, `.mts`, `.cts`)                                               |
+| 5        | **implementation** | Everything else (default)                                                                                                                                                       |
 
 Earlier rules take precedence. A `.test.js` file is always **tests**, never
 **comments** or **implementation**. Comment detection only applies to JS/TS

@@ -304,12 +304,17 @@ describe('classify', () => {
       expect(isConfigPath('.env')).toBe(true);
     });
 
-    it('should match dotfile config names', () => {
+    it('should match any dotfile as config', () => {
       expect(isConfigPath('.editorconfig')).toBe(true);
       expect(isConfigPath('.gitignore')).toBe(true);
       expect(isConfigPath('.gitattributes')).toBe(true);
       expect(isConfigPath('.npmrc')).toBe(true);
       expect(isConfigPath('.prettierrc')).toBe(true);
+      expect(isConfigPath('.dockerignore')).toBe(true);
+      expect(isConfigPath('.env.local')).toBe(true);
+      expect(isConfigPath('.huskyrc')).toBe(true);
+      expect(isConfigPath('.gitkeep')).toBe(true);
+      expect(isConfigPath('src/.eslintrc.json')).toBe(true);
     });
 
     it('should match files with config in the name', () => {

@@ -100,11 +100,7 @@ function isConfigPath(path) {
     return true;
   }
   const basename = lower.split('/').pop() || '';
-  if (
-    /^\.(editorconfig|gitignore|gitattributes|npmrc|nvmrc|prettierrc|eslintrc|stylelintrc|babelrc)$/i.test(
-      basename,
-    )
-  ) {
+  if (basename.startsWith('.')) {
     return true;
   }
   return /\.(config|rc)\.[^/]+$|config\.[^/]+$/i.test(basename);
