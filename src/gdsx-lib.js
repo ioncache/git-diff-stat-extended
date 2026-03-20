@@ -1,10 +1,12 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import picomatch from 'picomatch';
 import {
   runGit,
+  zeroSha,
   parseRawDiffZ,
   parseShortstat,
   formatShortstatLine,
-  buildRangeArgs,
 } from './git-parse.js';
 import {
   parseCommentsByLine,
@@ -36,9 +38,7 @@ import {
 
 /**
  * @typedef {Object} GenerateStatsOptions
- * @property {string} [base] - Base ref used with head when range is not provided.
- * @property {string} [head] - Head ref used with base when range is not provided.
- * @property {string} [range] - Explicit git revset.
+ * @property {string[]} [gitArgs] - Arguments forwarded to git diff.
  * @property {string|string[]} [include] - Include glob pattern or list of patterns.
  * @property {string|string[]} [exclude] - Exclude glob pattern or list of patterns.
  * @property {string} [cwd] - Working directory used to execute git.
@@ -144,7 +144,7 @@ function selectEntry(entry, includeMatchers, excludeMatchers) {
  * @throws {Error} When raw diff output cannot be parsed.
  *
  * @example
- * const report = generateStats({ base: 'main', head: 'HEAD' });
+ * const report = generateStats({ gitArgs: ['main...HEAD'] });
  * console.log(report.reconciliation.pass);
  */
 function generateStats(options = {}) {
@@ -154,22 +154,20 @@ function generateStats(options = {}) {
   const includeMatchers = buildMatchers(includePatterns);
   const excludeMatchers = buildMatchers(excludePatterns);
   const cwd = options.cwd || process.cwd();
-  const hasExplicitRange = Boolean(options.range || options.base || options.head);
   const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
-  let rangeArgs = buildRangeArgs(options);
-  let effectiveRange = options.range || `${options.base || 'HEAD~1'}..${options.head || 'HEAD'}`;
+  let rangeArgs = options.gitArgs && options.gitArgs.length > 0 ? [...options.gitArgs] : ['HEAD'];
+  let effectiveRange = rangeArgs.join(' ') || 'HEAD';
 
-  if (!hasExplicitRange) {
-    const hasParentCommit = runGit(['rev-parse', '--verify', '--quiet', 'HEAD~1'], {
+  if (rangeArgs.length === 1 && rangeArgs[0] === 'HEAD') {
+    const hasAnyCommit = runGit(['rev-parse', '--verify', '--quiet', 'HEAD'], {
       cwd,
       allowFailure: true,
     });
 
-    if (hasParentCommit.status !== 0) {
-      const headRef = options.head || 'HEAD';
-      rangeArgs = [EMPTY_TREE_SHA, headRef];
-      effectiveRange = `${EMPTY_TREE_SHA}..${headRef}`;
+    if (hasAnyCommit.status !== 0) {
+      rangeArgs = [EMPTY_TREE_SHA];
+      effectiveRange = EMPTY_TREE_SHA;
     }
   }
 
@@ -224,13 +222,21 @@ function generateStats(options = {}) {
     const blobTextCache = new Map();
 
     /**
-     * Loads blob text for a given SHA using git cat-file.
+     * Loads file text for a given SHA, falling back to disk for working tree files.
      *
      * @param {string} sha - Blob SHA to load.
-     * @returns {string|null} Blob text when available, otherwise null.
-     * @throws {Error} When git process execution fails.
+     * @param {string} filePath - Relative file path used for disk fallback.
+     * @returns {string|null} File text when available, otherwise null.
      */
-    function getBlobText(sha) {
+    function getBlobText(sha, filePath) {
+      if (zeroSha(sha)) {
+        try {
+          return fs.readFileSync(path.join(cwd, filePath), 'utf8');
+        } catch {
+          return null;
+        }
+      }
+
       /* istanbul ignore next -- cache-hit path depends on repeated blob lookups with identical sha/path */
       if (blobTextCache.has(sha)) {
         return blobTextCache.get(sha);
@@ -249,20 +255,20 @@ function generateStats(options = {}) {
      * Resolves comment line numbers for a blob and path with caching.
      *
      * @param {string} sha - Blob SHA.
-     * @param {string} path - File path used for parser plugin selection.
+     * @param {string} filePath - File path used for parser plugin selection.
      * @returns {Set<number>} Comment line numbers for the requested blob.
      */
-    function getCommentLines(sha, path) {
-      const cacheKey = `${sha}::${path}`;
+    function getCommentLines(sha, filePath) {
+      const cacheKey = `${sha}::${filePath}`;
       if (commentLineCache.has(cacheKey)) {
         return commentLineCache.get(cacheKey);
       }
 
-      const sourceText = getBlobText(sha);
+      const sourceText = getBlobText(sha, filePath);
       let commentLines = new Set();
       if (sourceText !== null) {
         try {
-          commentLines = parseCommentsByLine(sourceText, path);
+          commentLines = parseCommentsByLine(sourceText, filePath);
         } catch (error) {
           const message = error && error.message ? error.message : String(error);
           process.stderr.write(`warning: ${message}\n`);

@@ -47,7 +47,7 @@ describe('gdsx-lib', () => {
     commitAll(repo, 'add test and comment change');
 
     // Act
-    const report = generateStats({ cwd: repo, base: 'HEAD~1', head: 'HEAD' });
+    const report = generateStats({ cwd: repo, gitArgs: ['HEAD~1..HEAD'] });
 
     // Assert
     expect(report.reconciliation.pass).toBe(true);
@@ -59,7 +59,7 @@ describe('gdsx-lib', () => {
     expect(report.categories.tests.insertions).toBeGreaterThan(0);
   });
 
-  it('supports explicit range expressions', () => {
+  it('should accept git range expressions as gitArgs', () => {
     // Arrange
     const repo = createRepo();
 
@@ -73,17 +73,13 @@ describe('gdsx-lib', () => {
     commitAll(repo, 'c3');
 
     // Act
-    const withBaseHead = generateStats({
-      cwd: repo,
-      base: 'HEAD~2',
-      head: 'HEAD~1',
-    });
-    const withRange = generateStats({ cwd: repo, range: 'HEAD~2..HEAD~1' });
+    const twoCommit = generateStats({ cwd: repo, gitArgs: ['HEAD~2..HEAD~1'] });
+    const threeCommit = generateStats({ cwd: repo, gitArgs: ['HEAD~2..HEAD'] });
 
     // Assert
-    expect(withBaseHead.total).toEqual(withRange.total);
-    expect(withBaseHead.categories).toEqual(withRange.categories);
-    expect(withBaseHead.reconciliation.pass).toBe(true);
+    expect(twoCommit.reconciliation.pass).toBe(true);
+    expect(threeCommit.reconciliation.pass).toBe(true);
+    expect(threeCommit.total.insertions).toBeGreaterThanOrEqual(twoCommit.total.insertions);
   });
 
   it('applies include and exclude globs to selected files', () => {
@@ -101,15 +97,13 @@ describe('gdsx-lib', () => {
     // Act
     const includeSrcOnly = generateStats({
       cwd: repo,
-      base: 'HEAD~1',
-      head: 'HEAD',
+      gitArgs: ['HEAD~1..HEAD'],
       include: ['src/**'],
     });
 
     const excludeTests = generateStats({
       cwd: repo,
-      base: 'HEAD~1',
-      head: 'HEAD',
+      gitArgs: ['HEAD~1..HEAD'],
       exclude: ['**/*.test.js'],
     });
 
@@ -135,14 +129,12 @@ describe('gdsx-lib', () => {
     // Act
     const includeAsString = generateStats({
       cwd: repo,
-      base: 'HEAD~1',
-      head: 'HEAD',
+      gitArgs: ['HEAD~1..HEAD'],
       include: 'src/**',
     });
     const excludeAsString = generateStats({
       cwd: repo,
-      base: 'HEAD~1',
-      head: 'HEAD',
+      gitArgs: ['HEAD~1..HEAD'],
       exclude: '**/*.test.js',
     });
 
@@ -170,7 +162,7 @@ describe('gdsx-lib', () => {
     commitAll(repo, 'rename and modify');
 
     // Act
-    const report = generateStats({ cwd: repo, base: 'HEAD~1', head: 'HEAD' });
+    const report = generateStats({ cwd: repo, gitArgs: ['HEAD~1..HEAD'] });
 
     // Assert
     expect(report.reconciliation.pass).toBe(true);
@@ -201,7 +193,7 @@ describe('gdsx-lib', () => {
     commitAll(repo, 'rename big file and tweak one line');
 
     // Act
-    const report = generateStats({ cwd: repo, base: 'HEAD~1', head: 'HEAD' });
+    const report = generateStats({ cwd: repo, gitArgs: ['HEAD~1..HEAD'] });
 
     // Assert
     expect(report.reconciliation.pass).toBe(true);
@@ -209,19 +201,16 @@ describe('gdsx-lib', () => {
     expect(report.total.deletions).toBe(report.reconciliation.computed.deletions);
   });
 
-  it('falls back to root diff for the default range in a single-commit repository', () => {
+  it('falls back to empty tree when HEAD does not exist', () => {
     // Arrange
     const repo = createRepo();
     const emptyTreeSha = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
-    writeFile(repo, 'src/first.js', 'module.exports = 1;\n');
-    commitAll(repo, 'initial commit');
 
-    // Act
+    // Act — repo has no commits, so HEAD cannot be resolved
     const report = generateStats({ cwd: repo });
 
     // Assert
-    expect(report.range).toBe(`${emptyTreeSha}..HEAD`);
-    expect(report.total.filesChanged).toBeGreaterThan(0);
+    expect(report.range).toBe(emptyTreeSha);
     expect(report.reconciliation.pass).toBe(true);
   });
 
@@ -246,8 +235,7 @@ describe('gdsx-lib', () => {
     try {
       report = generateStats({
         cwd: repo,
-        base: 'HEAD~1',
-        head: 'HEAD',
+        gitArgs: ['HEAD~1..HEAD'],
       });
     } finally {
       process.stderr.write = previousStderrWrite;
@@ -284,7 +272,7 @@ describe('gdsx-lib', () => {
     commitAll(repo, 'changes');
 
     // Act
-    const report = generateStats({ cwd: repo, base: 'HEAD~1', head: 'HEAD' });
+    const report = generateStats({ cwd: repo, gitArgs: ['HEAD~1..HEAD'] });
 
     // Assert
     expect(report.fileDetails).toBeDefined();
@@ -312,7 +300,7 @@ describe('gdsx-lib', () => {
     commitAll(repo, 'update docs');
 
     // Act
-    const report = generateStats({ cwd: repo, base: 'HEAD~1', head: 'HEAD' });
+    const report = generateStats({ cwd: repo, gitArgs: ['HEAD~1..HEAD'] });
 
     // Assert
     expect(report.reconciliation.pass).toBe(true);
@@ -329,7 +317,7 @@ describe('gdsx-lib', () => {
     commitAll(repo, 'update config');
 
     // Act
-    const report = generateStats({ cwd: repo, base: 'HEAD~1', head: 'HEAD' });
+    const report = generateStats({ cwd: repo, gitArgs: ['HEAD~1..HEAD'] });
 
     // Assert
     expect(report.reconciliation.pass).toBe(true);

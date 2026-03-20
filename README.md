@@ -80,46 +80,52 @@ For development installation, see [docs/development.md](docs/development.md).
 ## Usage
 
 ```bash
-gdsx [options]
+gdsx [options] [<git-diff-args>...]
 ```
+
+`gdsx` is a thin wrapper around `git diff`. Any arguments not consumed by
+`gdsx` are forwarded directly to `git diff`, so commits, ranges, and
+git-specific flags work exactly as you would expect.
 
 ### Default comparison
 
-`HEAD~1..HEAD`
+Running bare `gdsx` with no arguments is equivalent to `git diff HEAD`, which
+shows all uncommitted changes (staged and unstaged) compared to the last
+commit.
 
 ### Options
 
-| Flag                    | Type    | Default  | Description                                                                            |
-| ----------------------- | ------- | -------- | -------------------------------------------------------------------------------------- |
-| `--base <ref>`          | string  | `HEAD~1` | Base ref used with `--head`                                                            |
-| `--head <ref>`          | string  | `HEAD`   | Head ref used with `--base`                                                            |
-| `--range <revset>`      | string  |          | Explicit revset (for example `main...HEAD`). Cannot be combined with `--base`/`--head` |
-| `--include <glob>`      | string  |          | Include glob pattern (repeatable). For renames/copies, matches against the new path    |
-| `--exclude <glob>`      | string  |          | Exclude glob pattern (repeatable). For renames/copies, matches against the new path    |
-| `--json`                | boolean | `false`  | Emit structured JSON output                                                            |
-| `--show-reconciliation` | boolean | `false`  | Show the reconciliation line when it passes (always shown on fail)                     |
-| `--group-by-extension`  | boolean | `false`  | Group the category breakdown by file extension                                         |
+| Flag                    | Type    | Default | Description                                                                 |
+| ----------------------- | ------- | ------- | --------------------------------------------------------------------------- |
+| `--include <glob>`      | string  |         | Include glob pattern (repeatable). For renames/copies, matches the new path |
+| `--exclude <glob>`      | string  |         | Exclude glob pattern (repeatable). For renames/copies, matches the new path |
+| `--json`                | boolean | `false` | Emit structured JSON output                                                 |
+| `--show-reconciliation` | boolean | `false` | Show the reconciliation line when it passes (always shown on fail)          |
+| `--group-by-extension`  | boolean | `false` | Group the category breakdown by file extension                              |
 
 ### Examples
 
 ```bash
-# Default range
+# All uncommitted changes vs last commit (default)
 gdsx
 
+# Last commit
+gdsx HEAD~1..HEAD
+
 # Compare branch tip against main
-gdsx --base main --head HEAD
+gdsx main..HEAD
 
 # Symmetric range expression
-gdsx --range main...HEAD
+gdsx main...HEAD
 
 # Include only src and tests
-gdsx --include 'src/**' --include 'tests/**'
+gdsx --include 'src/**' --include 'tests/**' main..HEAD
 
 # Exclude generated files
 gdsx --exclude '**/*.snap' --exclude 'dist/**'
 
 # JSON output
-gdsx --base main --json
+gdsx --json main..HEAD
 ```
 
 ## Output

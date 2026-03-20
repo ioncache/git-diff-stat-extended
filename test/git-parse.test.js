@@ -5,7 +5,6 @@ import {
   parseShortstat,
   formatShortstatLine,
   parseHunkHeader,
-  buildRangeArgs,
   zeroSha,
 } from '../src/git-parse.js';
 
@@ -286,40 +285,6 @@ describe('git-parse', () => {
       expect(parseHunkHeader('-removed line')).toBeNull();
       expect(parseHunkHeader(' context line')).toBeNull();
       expect(parseHunkHeader('diff --git a/file b/file')).toBeNull();
-    });
-  });
-
-  describe('buildRangeArgs', () => {
-    it('should return an explicit range as a single-element array', () => {
-      // Act
-      const result = buildRangeArgs({ range: 'main..HEAD' });
-
-      // Assert
-      expect(result).toEqual(['main..HEAD']);
-    });
-
-    it('should return base and head when range is not provided', () => {
-      // Act
-      const result = buildRangeArgs({ base: 'v1.0', head: 'v2.0' });
-
-      // Assert
-      expect(result).toEqual(['v1.0', 'v2.0']);
-    });
-
-    it('should default base to HEAD~1 and head to HEAD when neither is provided', () => {
-      // Act
-      const result = buildRangeArgs({});
-
-      // Assert
-      expect(result).toEqual(['HEAD~1', 'HEAD']);
-    });
-
-    it('should prefer range over base and head when all are provided', () => {
-      // Act
-      const result = buildRangeArgs({ range: 'a..b', base: 'c', head: 'd' });
-
-      // Assert
-      expect(result).toEqual(['a..b']);
     });
   });
 });

@@ -2,59 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 import { main as runCliMain } from '../src/gdsx-cli.js';
 import { writeFile, commitAll, createRepo } from './setup.js';
-
-/**
- * Creates a minimal report object suitable for CLI tests.
- *
- * @param {Partial<import('../src/gdsx-cli.js').CliReport>} [overrides={}] - Optional report overrides.
- * @returns {import('../src/gdsx-cli.js').CliReport} CLI report object.
- */
-function createReport(overrides = {}) {
-  const report = {
-    shortstatLine: '1 file changed, 1 insertion(+), 1 deletion(-)',
-    total: {
-      filesChanged: 1,
-      insertions: 1,
-      deletions: 1,
-    },
-    categories: {
-      implementation: { insertions: 1, deletions: 1 },
-      tests: { insertions: 0, deletions: 0 },
-      comments: { insertions: 0, deletions: 0 },
-      documentation: { insertions: 0, deletions: 0 },
-      configuration: { insertions: 0, deletions: 0 },
-    },
-    reconciliation: {
-      pass: true,
-      expected: { insertions: 1, deletions: 1 },
-      computed: { insertions: 1, deletions: 1 },
-    },
-    range: 'HEAD~1..HEAD',
-    filters: { include: [], exclude: [] },
-    selectedFiles: [],
-    fileDetails: [],
-  };
-
-  return {
-    ...report,
-    ...overrides,
-    total: { ...report.total, ...(overrides.total || {}) },
-    categories: { ...report.categories, ...(overrides.categories || {}) },
-    reconciliation: {
-      ...report.reconciliation,
-      ...(overrides.reconciliation || {}),
-      expected: {
-        ...report.reconciliation.expected,
-        ...((overrides.reconciliation && overrides.reconciliation.expected) || {}),
-      },
-      computed: {
-        ...report.reconciliation.computed,
-        ...((overrides.reconciliation && overrides.reconciliation.computed) || {}),
-      },
-    },
-    filters: { ...report.filters, ...(overrides.filters || {}) },
-  };
-}
+import { createReport, executeCliWithMain } from './helpers.js';
 
 /**
  * Executes the CLI main function with temporary process and console overrides.
@@ -64,53 +12,6 @@ function createReport(overrides = {}) {
  */
 function executeCli(options) {
   return executeCliWithMain(runCliMain, options);
-}
-
-/**
- * Executes a provided CLI main function with temporary process and console overrides.
- *
- * @param {() => void} cliMain - CLI main function to run.
- * @param {{ argv: string[], cwd?: string }} options - Runtime options.
- * @returns {{ logs: string[], errors: string[], exitCode: number }} Captured CLI execution result.
- */
-function executeCliWithMain(cliMain, options) {
-  const { argv, cwd } = options;
-  const previousArgv = process.argv;
-  const previousCwd = process.cwd();
-  const previousExitCode = process.exitCode;
-  const previousLog = console.log;
-  const previousError = console.error;
-  const logs = [];
-  const errors = [];
-
-  try {
-    process.argv = ['node', 'gdsx', ...argv];
-    process.exitCode = 0;
-    if (cwd) {
-      process.chdir(cwd);
-    }
-
-    console.log = (...args) => {
-      logs.push(args.map(String).join(' '));
-    };
-    console.error = (...args) => {
-      errors.push(args.map(String).join(' '));
-    };
-
-    cliMain();
-
-    return {
-      logs,
-      errors,
-      exitCode: process.exitCode ?? 0,
-    };
-  } finally {
-    process.argv = previousArgv;
-    process.chdir(previousCwd);
-    process.exitCode = previousExitCode;
-    console.log = previousLog;
-    console.error = previousError;
-  }
 }
 
 describe('gdsx-cli', () => {
@@ -124,7 +25,7 @@ describe('gdsx-cli', () => {
 
     // Act
     const result = executeCli({
-      argv: ['--base', 'HEAD~1', '--head', 'HEAD', '--json'],
+      argv: ['--json', 'HEAD~1..HEAD'],
       cwd: repo,
     });
     const parsed = JSON.parse(result.logs.join('\n'));
@@ -138,24 +39,6 @@ describe('gdsx-cli', () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  it('should fail with a non-zero exit code for incompatible range flags', () => {
-    // Arrange
-    const repo = createRepo();
-
-    // Act
-    const result = executeCli({
-      argv: ['--range', 'HEAD~1..HEAD', '--base', 'HEAD~1'],
-      cwd: repo,
-    });
-
-    // Assert
-    expect(result.exitCode).toBe(1);
-    expect(result.errors.join('\n')).toContain('Use either --range or --base/--head, not both.');
-
-    // Revert
-    expect(result.logs).toHaveLength(0);
-  });
-
   it('should emit text output from the CLI when json mode is not requested', () => {
     // Arrange
     const repo = createRepo();
@@ -166,7 +49,7 @@ describe('gdsx-cli', () => {
 
     // Act
     const result = executeCli({
-      argv: ['--base', 'HEAD~1', '--head', 'HEAD'],
+      argv: ['HEAD~1..HEAD'],
       cwd: repo,
     });
     const stdout = result.logs.join('\n');
@@ -207,7 +90,7 @@ describe('gdsx-cli', () => {
 
     // Act
     const result = executeCliWithMain(main, {
-      argv: ['--base', 'HEAD~1', '--head', 'HEAD'],
+      argv: ['HEAD~1..HEAD'],
       cwd: repo,
     });
 
@@ -235,7 +118,7 @@ describe('gdsx-cli', () => {
 
     // Act
     const result = executeCliWithMain(main, {
-      argv: ['--base', 'HEAD~1', '--head', 'HEAD'],
+      argv: ['HEAD~1..HEAD'],
       cwd: repo,
     });
 

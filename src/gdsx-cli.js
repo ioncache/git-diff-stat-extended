@@ -78,38 +78,24 @@ import {
 
 /**
  * @typedef {Object} CliArgv
- * @property {string} [base] - Base ref used with head.
- * @property {string} [head] - Head ref used with base.
- * @property {string} [range] - Explicit git revset.
  * @property {string[]} [include] - Include glob patterns.
  * @property {string[]} [exclude] - Exclude glob patterns.
  * @property {boolean} json - Whether to emit JSON output.
  * @property {boolean} showReconciliation - Whether to display reconciliation on pass.
  * @property {boolean} groupByExtension - Whether to group output by file extension.
+ * @property {string[]} gitArgs - Arguments forwarded to git diff.
  */
 
 /**
- * Parses and validates command-line arguments.
+ * Parses command-line arguments, separating gdsx options from git diff arguments.
  *
  * @returns {CliArgv} Parsed CLI arguments.
- * @throws {Error} When incompatible arguments are provided.
  */
 function parseArgv() {
-  return yargs(hideBin(process.argv))
+  const argv = yargs(hideBin(process.argv))
     .scriptName('gdsx')
-    .usage('$0 [options]')
-    .option('base', {
-      type: 'string',
-      description: 'Base ref used with --head (default HEAD~1)',
-    })
-    .option('head', {
-      type: 'string',
-      description: 'Head ref used with --base (default HEAD)',
-    })
-    .option('range', {
-      type: 'string',
-      description: 'Git revision range expression (for example main...HEAD)',
-    })
+    .usage('$0 [options] [<git-diff-args>...]')
+    .parserConfiguration({ 'unknown-options-as-args': true })
     .option('include', {
       type: 'string',
       array: true,
@@ -135,15 +121,13 @@ function parseArgv() {
       default: false,
       description: 'Group category breakdown by file extension',
     })
-    .check((argv) => {
-      if (argv.range && (argv.base || argv.head)) {
-        throw new Error('Use either --range or --base/--head, not both.');
-      }
-      return true;
-    })
-    .strict()
     .help()
     .parseSync();
+
+  return {
+    ...argv,
+    gitArgs: (argv._ || []).map(String),
+  };
 }
 
 /**
@@ -155,9 +139,7 @@ function main() {
   try {
     const argv = parseArgv();
     const report = generateStats({
-      base: argv.base,
-      head: argv.head,
-      range: argv.range,
+      gitArgs: argv.gitArgs,
       include: argv.include,
       exclude: argv.exclude,
     });

@@ -116,7 +116,7 @@ describe('classify', () => {
       expect(result.implementation.insertions).toBe(1);
     });
 
-    it('should skip comment lookup when SHA is all zeros', () => {
+    it('should call comment provider even when SHA is all zeros', () => {
       // Arrange
       const patch = ['@@ -0,0 +1,1 @@', '+// looks like a comment'].join('\n');
       const entry = {
@@ -135,9 +135,9 @@ describe('classify', () => {
       const result = classifyPatchText(patch, entry, commentLineProvider);
 
       // Assert
-      expect(providerCalled).toBe(false);
-      expect(result.implementation.insertions).toBe(1);
-      expect(result.comments.insertions).toBe(0);
+      expect(providerCalled).toBe(true);
+      expect(result.comments.insertions).toBe(1);
+      expect(result.implementation.insertions).toBe(0);
     });
 
     it('should classify deletions using old side path and SHA', () => {

@@ -1,5 +1,5 @@
 import * as babelParser from '@babel/parser';
-import { zeroSha, parseHunkHeader } from './git-parse.js';
+import { parseHunkHeader } from './git-parse.js';
 
 /**
  * @typedef {import('./git-parse.js').RawDiffEntry} RawDiffEntry
@@ -199,11 +199,9 @@ function classifyLine(side, lineNumber, entry, commentLineProvider) {
 
   if (isJsTsPath(sidePath)) {
     const sideSha = side === 'old' ? entry.oldSha : entry.newSha;
-    if (!zeroSha(sideSha)) {
-      const commentLines = commentLineProvider(sideSha, sidePath);
-      if (commentLines.has(lineNumber)) {
-        return 'comments';
-      }
+    const commentLines = commentLineProvider(sideSha, sidePath);
+    if (commentLines.has(lineNumber)) {
+      return 'comments';
     }
   }
 

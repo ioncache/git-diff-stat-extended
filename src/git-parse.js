@@ -230,25 +230,4 @@ function parseHunkHeader(line) {
   };
 }
 
-/**
- * Builds git range arguments from explicit range or base and head refs.
- *
- * @param {import('./gdsx-lib.js').GenerateStatsOptions} input - User-provided range options.
- * @returns {string[]} Git range arguments for diff commands.
- */
-function buildRangeArgs(input) {
-  if (input.range) {
-    return [input.range];
-  }
-  return [input.base || 'HEAD~1', input.head || 'HEAD'];
-}
-
-export {
-  runGit,
-  zeroSha,
-  parseRawDiffZ,
-  parseShortstat,
-  formatShortstatLine,
-  parseHunkHeader,
-  buildRangeArgs,
-};
+export { runGit, zeroSha, parseRawDiffZ, parseShortstat, formatShortstatLine, parseHunkHeader };
