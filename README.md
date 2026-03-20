@@ -77,8 +77,14 @@ files that are not already matched by a higher-priority rule.
 ```bash
 cd ~/projects/personal/git-diff-stat-extended
 npm install
-chmod +x gdsx
+npm run build
 npm link
+```
+
+After making source changes, rebuild before testing:
+
+```bash
+npm run build
 ```
 
 Then run from any git repository:
