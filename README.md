@@ -17,7 +17,10 @@ It enforces strict reconciliation:
 
 If reconciliation fails, `gdsx` prints diagnostics and exits non-zero.
 
+## Table of Contents
+
 - [git-diff-stat-extended](#git-diff-stat-extended)
+  - [Table of Contents](#table-of-contents)
   - [Motivation](#motivation)
   - [Features](#features)
   - [Category classification](#category-classification)
