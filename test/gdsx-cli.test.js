@@ -22,6 +22,8 @@ function createReport(overrides = {}) {
       implementation: { insertions: 1, deletions: 1 },
       tests: { insertions: 0, deletions: 0 },
       comments: { insertions: 0, deletions: 0 },
+      documentation: { insertions: 0, deletions: 0 },
+      configuration: { insertions: 0, deletions: 0 },
     },
     reconciliation: {
       pass: true,
@@ -31,6 +33,7 @@ function createReport(overrides = {}) {
     range: "HEAD~1..HEAD",
     filters: { include: [], exclude: [] },
     selectedFiles: [],
+    fileDetails: [],
   };
 
   return {
@@ -173,7 +176,7 @@ describe("gdsx", () => {
     expect(result.exitCode).toBe(0);
     expect(stdout).toContain("file changed");
     expect(stdout).toContain("Category");
-    expect(stdout).toContain("reconciliation:");
+    expect(stdout).not.toContain("reconciliation:");
 
     // Revert
     expect(result.errors).toHaveLength(0);
@@ -187,6 +190,8 @@ describe("gdsx", () => {
         implementation: { insertions: 1, deletions: 0 },
         tests: { insertions: 0, deletions: 0 },
         comments: { insertions: 0, deletions: 0 },
+        documentation: { insertions: 0, deletions: 0 },
+        configuration: { insertions: 0, deletions: 0 },
       },
       reconciliation: {
         pass: false,
@@ -362,7 +367,7 @@ describe("gdsx", () => {
     vi.resetModules();
   });
 
-  it("should render plural shortstat labels and negative net values in text output", async () => {
+  it("should render plural file labels and negative net values in text output", async () => {
     // Arrange
     const repo = createRepo();
     const report = createReport({
@@ -375,6 +380,8 @@ describe("gdsx", () => {
         implementation: { insertions: 1, deletions: 3 },
         tests: { insertions: 1, deletions: 0 },
         comments: { insertions: 0, deletions: 0 },
+        documentation: { insertions: 0, deletions: 0 },
+        configuration: { insertions: 0, deletions: 0 },
       },
       reconciliation: {
         pass: true,
@@ -397,8 +404,10 @@ describe("gdsx", () => {
     const output = result.logs.join("\n");
 
     // Assert
-    expect(output).toContain("2 files changed, 2 insertions(+), 3 deletions(-)");
+    expect(output).toContain("2 files changed");
+    expect(output).toContain("·");
     expect(output).toContain("-2");
+    expect(output).not.toContain("reconciliation:");
 
     // Revert
     vi.doUnmock("../src/gdsx-lib.js");
@@ -426,6 +435,240 @@ describe("gdsx", () => {
     // Assert
     expect(result.exitCode).toBe(1);
     expect(result.errors.join("\n")).toContain("gdsx error: 42");
+
+    // Revert
+    vi.doUnmock("../src/gdsx-lib.js");
+    vi.resetModules();
+  });
+
+  it("should show reconciliation line on pass when --show-reconciliation is set", async () => {
+    // Arrange
+    const repo = createRepo();
+
+    vi.resetModules();
+    vi.doMock("../src/gdsx-lib.js", () => ({
+      generateStats: () => createReport(),
+    }));
+    const { main } = await import("../src/gdsx-cli.js");
+
+    // Act
+    const result = executeCliWithMain(main, {
+      argv: ["--base", "HEAD~1", "--head", "HEAD", "--show-reconciliation"],
+      cwd: repo,
+    });
+    const output = result.logs.join("\n");
+
+    // Assert
+    expect(result.exitCode).toBe(0);
+    expect(output).toContain("PASS reconciliation:");
+
+    // Revert
+    vi.doUnmock("../src/gdsx-lib.js");
+    vi.resetModules();
+  });
+
+  it("should hide reconciliation line on pass by default", async () => {
+    // Arrange
+    const repo = createRepo();
+
+    vi.resetModules();
+    vi.doMock("../src/gdsx-lib.js", () => ({
+      generateStats: () => createReport(),
+    }));
+    const { main } = await import("../src/gdsx-cli.js");
+
+    // Act
+    const result = executeCliWithMain(main, {
+      argv: ["--base", "HEAD~1", "--head", "HEAD"],
+      cwd: repo,
+    });
+    const output = result.logs.join("\n");
+
+    // Assert
+    expect(result.exitCode).toBe(0);
+    expect(output).not.toContain("reconciliation:");
+
+    // Revert
+    vi.doUnmock("../src/gdsx-lib.js");
+    vi.resetModules();
+  });
+
+  it("should always show reconciliation line on fail regardless of flag", async () => {
+    // Arrange
+    const repo = createRepo();
+    const failReport = createReport({
+      categories: {
+        implementation: { insertions: 1, deletions: 0 },
+        tests: { insertions: 0, deletions: 0 },
+        comments: { insertions: 0, deletions: 0 },
+        documentation: { insertions: 0, deletions: 0 },
+        configuration: { insertions: 0, deletions: 0 },
+      },
+      reconciliation: {
+        pass: false,
+        expected: { insertions: 1, deletions: 1 },
+        computed: { insertions: 1, deletions: 0 },
+      },
+    });
+
+    vi.resetModules();
+    vi.doMock("../src/gdsx-lib.js", () => ({
+      generateStats: () => failReport,
+    }));
+    const { main } = await import("../src/gdsx-cli.js");
+
+    // Act
+    const result = executeCliWithMain(main, {
+      argv: ["--base", "HEAD~1", "--head", "HEAD"],
+      cwd: repo,
+    });
+    const output = result.logs.join("\n");
+
+    // Assert
+    expect(result.exitCode).toBe(1);
+    expect(output).toContain("FAIL reconciliation:");
+
+    // Revert
+    vi.doUnmock("../src/gdsx-lib.js");
+    vi.resetModules();
+  });
+
+  it("should render grouped output by extension when --group-by-extension is set", async () => {
+    // Arrange
+    const repo = createRepo();
+    const report = createReport({
+      total: { filesChanged: 3, insertions: 5, deletions: 2 },
+      categories: {
+        implementation: { insertions: 3, deletions: 1 },
+        tests: { insertions: 2, deletions: 1 },
+        comments: { insertions: 0, deletions: 0 },
+        documentation: { insertions: 0, deletions: 0 },
+        configuration: { insertions: 0, deletions: 0 },
+      },
+      reconciliation: {
+        pass: true,
+        expected: { insertions: 5, deletions: 2 },
+        computed: { insertions: 5, deletions: 2 },
+      },
+    });
+    report.fileDetails = [
+      {
+        path: "src/app.js",
+        categories: {
+          implementation: { insertions: 2, deletions: 1 },
+          tests: { insertions: 0, deletions: 0 },
+          comments: { insertions: 0, deletions: 0 },
+          documentation: { insertions: 0, deletions: 0 },
+          configuration: { insertions: 0, deletions: 0 },
+        },
+      },
+      {
+        path: "src/utils.js",
+        categories: {
+          implementation: { insertions: 1, deletions: 0 },
+          tests: { insertions: 0, deletions: 0 },
+          comments: { insertions: 0, deletions: 0 },
+          documentation: { insertions: 0, deletions: 0 },
+          configuration: { insertions: 0, deletions: 0 },
+        },
+      },
+      {
+        path: "tests/app.test.js",
+        categories: {
+          implementation: { insertions: 0, deletions: 0 },
+          tests: { insertions: 2, deletions: 1 },
+          comments: { insertions: 0, deletions: 0 },
+          documentation: { insertions: 0, deletions: 0 },
+          configuration: { insertions: 0, deletions: 0 },
+        },
+      },
+    ];
+
+    vi.resetModules();
+    vi.doMock("../src/gdsx-lib.js", () => ({
+      generateStats: () => report,
+    }));
+    const { main } = await import("../src/gdsx-cli.js");
+
+    // Act
+    const result = executeCliWithMain(main, {
+      argv: ["--base", "HEAD~1", "--head", "HEAD", "--group-by-extension"],
+      cwd: repo,
+    });
+    const output = result.logs.join("\n");
+
+    // Assert
+    expect(result.exitCode).toBe(0);
+    expect(output).toContain(".js");
+    expect(output).toContain("3 files");
+    expect(output).toContain("implementation");
+    expect(output).toContain("tests");
+    expect(output).toContain("comments");
+    expect(output).toContain("total");
+
+    // Revert
+    vi.doUnmock("../src/gdsx-lib.js");
+    vi.resetModules();
+  });
+
+  it("should group multiple extensions separately in grouped output", async () => {
+    // Arrange
+    const repo = createRepo();
+    const report = createReport({
+      total: { filesChanged: 2, insertions: 3, deletions: 1 },
+      categories: {
+        implementation: { insertions: 2, deletions: 1 },
+        tests: { insertions: 0, deletions: 0 },
+        comments: { insertions: 1, deletions: 0 },
+        documentation: { insertions: 0, deletions: 0 },
+        configuration: { insertions: 0, deletions: 0 },
+      },
+      reconciliation: {
+        pass: true,
+        expected: { insertions: 3, deletions: 1 },
+        computed: { insertions: 3, deletions: 1 },
+      },
+    });
+    report.fileDetails = [
+      {
+        path: "src/app.js",
+        categories: {
+          implementation: { insertions: 2, deletions: 1 },
+          tests: { insertions: 0, deletions: 0 },
+          comments: { insertions: 0, deletions: 0 },
+          documentation: { insertions: 0, deletions: 0 },
+          configuration: { insertions: 0, deletions: 0 },
+        },
+      },
+      {
+        path: "src/style.css",
+        categories: {
+          implementation: { insertions: 0, deletions: 0 },
+          tests: { insertions: 0, deletions: 0 },
+          comments: { insertions: 1, deletions: 0 },
+          documentation: { insertions: 0, deletions: 0 },
+          configuration: { insertions: 0, deletions: 0 },
+        },
+      },
+    ];
+
+    vi.resetModules();
+    vi.doMock("../src/gdsx-lib.js", () => ({
+      generateStats: () => report,
+    }));
+    const { main } = await import("../src/gdsx-cli.js");
+
+    // Act
+    const result = executeCliWithMain(main, {
+      argv: ["--base", "HEAD~1", "--head", "HEAD", "--group-by-extension"],
+      cwd: repo,
+    });
+    const output = result.logs.join("\n");
+
+    // Assert
+    expect(output).toContain(".js");
+    expect(output).toContain(".css");
+    expect(output).toContain("1 file");
 
     // Revert
     vi.doUnmock("../src/gdsx-lib.js");

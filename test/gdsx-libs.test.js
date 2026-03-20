@@ -269,4 +269,72 @@ describe("gdsx-lib", () => {
     // Revert
     expect(process.stderr.write).toBe(previousStderrWrite);
   });
+
+  it("should return per-file category breakdowns in fileDetails", () => {
+    // Arrange
+    const repo = createRepo();
+    writeFile(repo, "src/app.js", "module.exports = 1;\n");
+    writeFile(repo, "src/app.css", "body { color: red; }\n");
+    commitAll(repo, "initial");
+    writeFile(repo, "src/app.js", "module.exports = 2;\n");
+    writeFile(repo, "src/app.css", "body { color: blue; }\n");
+    writeFile(
+      repo,
+      "tests/app.test.js",
+      ["const { sum } = require('../src/app');", "it('works', () => {});", ""].join("\n"),
+    );
+    commitAll(repo, "changes");
+
+    // Act
+    const report = generateStats({ cwd: repo, base: "HEAD~1", head: "HEAD" });
+
+    // Assert
+    expect(report.fileDetails).toBeDefined();
+    expect(report.fileDetails.length).toBeGreaterThan(0);
+    for (const detail of report.fileDetails) {
+      expect(detail).toHaveProperty("path");
+      expect(detail).toHaveProperty("categories");
+      expect(detail.categories).toHaveProperty("implementation");
+      expect(detail.categories).toHaveProperty("tests");
+      expect(detail.categories).toHaveProperty("comments");
+      expect(detail.categories).toHaveProperty("documentation");
+      expect(detail.categories).toHaveProperty("configuration");
+    }
+    const jsPaths = report.fileDetails.filter((d) => d.path.endsWith(".js")).map((d) => d.path);
+    expect(jsPaths.length).toBeGreaterThan(0);
+  });
+
+  it("should classify documentation files into the documentation category", () => {
+    // Arrange
+    const repo = createRepo();
+    writeFile(repo, "src/app.js", "module.exports = 1;\n");
+    writeFile(repo, "README.md", "# Title\n");
+    commitAll(repo, "initial");
+    writeFile(repo, "README.md", "# Title\n\nUpdated docs.\n");
+    commitAll(repo, "update docs");
+
+    // Act
+    const report = generateStats({ cwd: repo, base: "HEAD~1", head: "HEAD" });
+
+    // Assert
+    expect(report.reconciliation.pass).toBe(true);
+    expect(report.categories.documentation.insertions).toBeGreaterThan(0);
+  });
+
+  it("should classify configuration files into the configuration category", () => {
+    // Arrange
+    const repo = createRepo();
+    writeFile(repo, "src/app.js", "module.exports = 1;\n");
+    writeFile(repo, "package.json", '{"name": "test"}\n');
+    commitAll(repo, "initial");
+    writeFile(repo, "package.json", '{"name": "test", "version": "1.0.0"}\n');
+    commitAll(repo, "update config");
+
+    // Act
+    const report = generateStats({ cwd: repo, base: "HEAD~1", head: "HEAD" });
+
+    // Assert
+    expect(report.reconciliation.pass).toBe(true);
+    expect(report.categories.configuration.insertions).toBeGreaterThan(0);
+  });
 });

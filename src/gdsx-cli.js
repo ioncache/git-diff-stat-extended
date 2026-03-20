@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import path from "node:path";
 import yargs from "yargs/yargs";
 import { hideBin } from "yargs/helpers";
 import pc from "picocolors";
@@ -23,6 +24,8 @@ import { generateStats } from "./gdsx-lib.js";
  * @property {CliLineCounts} implementation - Implementation totals.
  * @property {CliLineCounts} tests - Test totals.
  * @property {CliLineCounts} comments - Comment totals.
+ * @property {CliLineCounts} documentation - Documentation totals.
+ * @property {CliLineCounts} configuration - Configuration totals.
  */
 
 /**
@@ -47,6 +50,19 @@ import { generateStats } from "./gdsx-lib.js";
  */
 
 /**
+ * @typedef {Object} CliFileDetail
+ * @property {string} path - Display path for the file.
+ * @property {CliCategories} categories - Per-file category breakdown.
+ */
+
+/**
+ * @typedef {Object} CliExtensionGroup
+ * @property {string} extension - File extension label.
+ * @property {number} fileCount - Number of files in the group.
+ * @property {CliCategories} categories - Aggregated category totals for the group.
+ */
+
+/**
  * @typedef {Object} CliReport
  * @property {string} shortstatLine - Human-readable shortstat line.
  * @property {CliTotals} total - Authoritative totals.
@@ -55,6 +71,7 @@ import { generateStats } from "./gdsx-lib.js";
  * @property {string} range - Effective range string.
  * @property {CliFilters} filters - Applied filters.
  * @property {CliSelectedFile[]} selectedFiles - Selected files.
+ * @property {CliFileDetail[]} fileDetails - Per-file category breakdowns.
  */
 
 /**
@@ -66,6 +83,8 @@ import { generateStats } from "./gdsx-lib.js";
  * @property {string[]} [exclude] - Exclude glob patterns.
  * @property {boolean} json - Whether to emit JSON output.
  * @property {boolean} verbose - Whether to emit extra diagnostics.
+ * @property {boolean} showReconciliation - Whether to display reconciliation on pass.
+ * @property {boolean} groupByExtension - Whether to group output by file extension.
  */
 
 /**
@@ -163,60 +182,44 @@ function fmtNet(value) {
 }
 
 /**
- * Renders a git shortstat-style summary line.
+ * Renders a header label with files changed count and range.
  *
  * @param {CliTotals} total - Totals to render.
- * @returns {string} Colorized shortstat summary.
+ * @param {string} range - Effective git range string.
+ * @returns {string} Formatted header label.
  */
-function renderShortstat(total) {
+function renderHeaderLabel(total, range) {
   const filesWord = total.filesChanged === 1 ? "file" : "files";
-  const insertionsWord = total.insertions === 1 ? "insertion" : "insertions";
-  const deletionsWord = total.deletions === 1 ? "deletion" : "deletions";
-
-  return (
-    `${total.filesChanged} ${filesWord} changed, ` +
-    `${colors.green(`${total.insertions} ${insertionsWord}(+)`)}, ` +
-    `${colors.red(`${total.deletions} ${deletionsWord}(-)`)}`
-  );
+  return `${total.filesChanged} ${filesWord} changed  ·  ${range}`;
 }
 
 /**
  * Prints human-readable CLI output for an extended diff report.
  *
  * @param {CliReport} report - Report to print.
+ * @param {{ showReconciliation: boolean }} options - Display options.
  * @returns {void}
  *
  * @example
- * renderTextOutput(report);
+ * renderTextOutput(report, { showReconciliation: false });
  */
-function renderTextOutput(report) {
+function renderTextOutput(report, options) {
   const { total, categories, reconciliation } = report;
 
-  console.log(renderShortstat(total));
-
-  const rows = [
-    {
-      category: "implementation",
-      insertions: categories.implementation.insertions,
-      deletions: categories.implementation.deletions,
-    },
-    {
-      category: "tests",
-      insertions: categories.tests.insertions,
-      deletions: categories.tests.deletions,
-    },
-    {
-      category: "comments",
-      insertions: categories.comments.insertions,
-      deletions: categories.comments.deletions,
-    },
-  ];
+  const categoryNames = ["implementation", "tests", "comments", "documentation", "configuration"];
+  const rows = categoryNames.map((name) => ({
+    category: name,
+    insertions: categories[name].insertions,
+    deletions: categories[name].deletions,
+  }));
 
   const table = new Table({
-    head: ["Category", "Insertions", "Deletions", "Net"],
     colAligns: ["left", "right", "right", "right"],
     style: { head: [], border: [] },
   });
+
+  table.push([{ colSpan: 4, content: renderHeaderLabel(total, report.range) }]);
+  table.push(["Category", "Insertions", "Deletions", "Net"]);
 
   for (const row of rows) {
     const net = row.insertions - row.deletions;
@@ -237,21 +240,167 @@ function renderTextOutput(report) {
 
   console.log(table.toString());
 
-  const statusLabel = reconciliation.pass ? colors.green("PASS") : colors.red("FAIL");
-  console.log(
-    `${statusLabel} reconciliation: expected ${fmtSigned(reconciliation.expected.insertions, reconciliation.expected.deletions)}, ` +
-      `computed ${fmtSigned(reconciliation.computed.insertions, reconciliation.computed.deletions)}`,
-  );
+  const showReconciliationLine = !reconciliation.pass || options.showReconciliation;
+
+  if (showReconciliationLine) {
+    const statusLabel = reconciliation.pass ? colors.green("PASS") : colors.red("FAIL");
+    console.log(
+      `${statusLabel} reconciliation: expected ${fmtSigned(reconciliation.expected.insertions, reconciliation.expected.deletions)}, ` +
+        `computed ${fmtSigned(reconciliation.computed.insertions, reconciliation.computed.deletions)}`,
+    );
+  }
 
   if (!reconciliation.pass) {
     console.error("Diagnostics:");
-    console.error(
-      `  implementation: ${fmtSigned(categories.implementation.insertions, categories.implementation.deletions)}`,
+    for (const name of ["implementation", "tests", "comments", "documentation", "configuration"]) {
+      console.error(
+        `  ${name}: ${fmtSigned(categories[name].insertions, categories[name].deletions)}`,
+      );
+    }
+    console.error(`  total: ${fmtSigned(total.insertions, total.deletions)}`);
+  }
+}
+
+/**
+ * Groups file details by extension and aggregates category totals.
+ *
+ * @param {CliFileDetail[]} fileDetails - Per-file category breakdowns.
+ * @returns {CliExtensionGroup[]} Extension groups sorted by total changes descending.
+ */
+function groupFileDetailsByExtension(fileDetails) {
+  const groups = new Map();
+
+  for (const file of fileDetails) {
+    const ext = path.extname(file.path) || "(no extension)";
+    if (!groups.has(ext)) {
+      groups.set(ext, {
+        extension: ext,
+        fileCount: 0,
+        categories: {
+          implementation: { insertions: 0, deletions: 0 },
+          tests: { insertions: 0, deletions: 0 },
+          comments: { insertions: 0, deletions: 0 },
+          documentation: { insertions: 0, deletions: 0 },
+          configuration: { insertions: 0, deletions: 0 },
+        },
+      });
+    }
+
+    const group = groups.get(ext);
+    group.fileCount += 1;
+    for (const cat of ["implementation", "tests", "comments", "documentation", "configuration"]) {
+      group.categories[cat].insertions += file.categories[cat].insertions;
+      group.categories[cat].deletions += file.categories[cat].deletions;
+    }
+  }
+
+  return [...groups.values()].sort((a, b) => {
+    if (a.extension === "(no extension)") return 1;
+    if (b.extension === "(no extension)") return -1;
+    return a.extension.localeCompare(b.extension);
+  });
+}
+
+/**
+ * Removes horizontal border lines between consecutive sub-rows in a rendered table string.
+ *
+ * @param {string} tableString - Rendered cli-table3 output.
+ * @param {string[]} rowTypes - Ordered row type labels matching table content rows.
+ * @returns {string} Table string with sub-row borders stripped.
+ */
+function stripSubRowBorders(tableString, rowTypes) {
+  const lines = tableString.split("\n");
+  const result = [];
+  let contentIndex = -1;
+
+  for (const line of lines) {
+    if (line.startsWith("\u2502") || line.startsWith("│")) {
+      contentIndex++;
+      result.push(line);
+    } else if (line.startsWith("\u251C") || line.startsWith("├")) {
+      const prevType = rowTypes[contentIndex];
+      const nextType = rowTypes[contentIndex + 1];
+      if (prevType === "sub" && nextType === "sub") {
+        continue;
+      }
+      result.push(line);
+    } else {
+      result.push(line);
+    }
+  }
+
+  return result.join("\n");
+}
+
+/**
+ * Prints human-readable CLI output grouped by file extension.
+ *
+ * @param {CliReport} report - Report to print.
+ * @param {{ showReconciliation: boolean }} options - Display options.
+ * @returns {void}
+ *
+ * @example
+ * renderGroupedTextOutput(report, { showReconciliation: false });
+ */
+function renderGroupedTextOutput(report, options) {
+  const { total, reconciliation } = report;
+  const extensionGroups = groupFileDetailsByExtension(report.fileDetails);
+
+  const table = new Table({
+    colAligns: ["left", "right", "right", "right"],
+    style: { head: [], border: [] },
+  });
+
+  const rowTypes = [];
+
+  table.push([{ colSpan: 4, content: renderHeaderLabel(total, report.range) }]);
+  rowTypes.push("title");
+  table.push(["Category", "Insertions", "Deletions", "Net"]);
+  rowTypes.push("header");
+
+  for (const group of extensionGroups) {
+    const filesWord = group.fileCount === 1 ? "file" : "files";
+    table.push([
+      { colSpan: 4, content: colors.bold(`${group.extension} (${group.fileCount} ${filesWord})`) },
+    ]);
+    rowTypes.push("group");
+
+    for (const cat of ["implementation", "tests", "comments", "documentation", "configuration"]) {
+      const ins = group.categories[cat].insertions;
+      const del = group.categories[cat].deletions;
+      const net = ins - del;
+      table.push([`  ${cat}`, fmtInsertion(ins), fmtDeletion(del), fmtNet(net)]);
+      rowTypes.push("sub");
+    }
+  }
+
+  table.push([
+    colors.bold("total"),
+    colors.bold(fmtInsertion(total.insertions)),
+    colors.bold(fmtDeletion(total.deletions)),
+    colors.bold(fmtNet(total.insertions - total.deletions)),
+  ]);
+  rowTypes.push("total");
+
+  console.log(stripSubRowBorders(table.toString(), rowTypes));
+
+  const showReconciliationLine = !reconciliation.pass || options.showReconciliation;
+
+  if (showReconciliationLine) {
+    const statusLabel = reconciliation.pass ? colors.green("PASS") : colors.red("FAIL");
+    console.log(
+      `${statusLabel} reconciliation: expected ${fmtSigned(reconciliation.expected.insertions, reconciliation.expected.deletions)}, ` +
+        `computed ${fmtSigned(reconciliation.computed.insertions, reconciliation.computed.deletions)}`,
     );
-    console.error(`  tests: ${fmtSigned(categories.tests.insertions, categories.tests.deletions)}`);
-    console.error(
-      `  comments: ${fmtSigned(categories.comments.insertions, categories.comments.deletions)}`,
-    );
+  }
+
+  if (!reconciliation.pass) {
+    console.error("Diagnostics:");
+    for (const name of ["implementation", "tests", "comments", "documentation", "configuration"]) {
+      console.error(
+        `  ${name}: ${fmtSigned(report.categories[name].insertions, report.categories[name].deletions)}`,
+      );
+    }
     console.error(`  total: ${fmtSigned(total.insertions, total.deletions)}`);
   }
 }
@@ -276,6 +425,7 @@ function renderJsonOutput(report) {
         range: report.range,
         filters: report.filters,
         selectedFiles: report.selectedFiles,
+        fileDetails: report.fileDetails,
       },
       null,
       2,
@@ -325,6 +475,16 @@ function parseArgv() {
       default: false,
       description: "Print warnings and additional diagnostics",
     })
+    .option("show-reconciliation", {
+      type: "boolean",
+      default: false,
+      description: "Show reconciliation line when it passes",
+    })
+    .option("group-by-extension", {
+      type: "boolean",
+      default: false,
+      description: "Group category breakdown by file extension",
+    })
     .check((argv) => {
       if (argv.range && (argv.base || argv.head)) {
         throw new Error("Use either --range or --base/--head, not both.");
@@ -355,8 +515,10 @@ function main() {
 
     if (argv.json) {
       renderJsonOutput(report);
+    } else if (argv.groupByExtension) {
+      renderGroupedTextOutput(report, { showReconciliation: argv.showReconciliation });
     } else {
-      renderTextOutput(report);
+      renderTextOutput(report, { showReconciliation: argv.showReconciliation });
     }
 
     if (!report.reconciliation.pass) {

@@ -3,6 +3,8 @@ import { describe, it, expect } from "vitest";
 import {
   classifyPatchText,
   isTestPath,
+  isDocPath,
+  isConfigPath,
   parseCommentsByLine,
   reconcileTotals,
 } from "../src/classify.js";
@@ -16,6 +18,8 @@ describe("classify", () => {
         implementation: { insertions: 1, deletions: 1 },
         tests: { insertions: 1, deletions: 1 },
         comments: { insertions: 1, deletions: 0 },
+        documentation: { insertions: 0, deletions: 0 },
+        configuration: { insertions: 0, deletions: 0 },
       };
 
       // Act
@@ -47,6 +51,8 @@ describe("classify", () => {
         implementation: { insertions: 0, deletions: 0 },
         tests: { insertions: 0, deletions: 0 },
         comments: { insertions: 0, deletions: 0 },
+        documentation: { insertions: 0, deletions: 0 },
+        configuration: { insertions: 0, deletions: 0 },
       });
     });
 
@@ -67,6 +73,8 @@ describe("classify", () => {
         implementation: { insertions: 0, deletions: 0 },
         tests: { insertions: 0, deletions: 0 },
         comments: { insertions: 0, deletions: 0 },
+        documentation: { insertions: 0, deletions: 0 },
+        configuration: { insertions: 0, deletions: 0 },
       });
     });
 
@@ -140,6 +148,69 @@ describe("classify", () => {
 
       // Assert
       expect(result).toBe(false);
+    });
+  });
+
+  describe("isDocPath", () => {
+    it("should match markdown files", () => {
+      expect(isDocPath("README.md")).toBe(true);
+      expect(isDocPath("docs/guide.md")).toBe(true);
+    });
+
+    it("should match text and restructured text files", () => {
+      expect(isDocPath("notes.txt")).toBe(true);
+      expect(isDocPath("docs/guide.rst")).toBe(true);
+      expect(isDocPath("docs/guide.adoc")).toBe(true);
+    });
+
+    it("should match bare documentation filenames", () => {
+      expect(isDocPath("LICENSE")).toBe(true);
+      expect(isDocPath("CHANGELOG")).toBe(true);
+      expect(isDocPath("AUTHORS")).toBe(true);
+      expect(isDocPath("CONTRIBUTORS")).toBe(true);
+    });
+
+    it("should not match source files", () => {
+      expect(isDocPath("src/app.js")).toBe(false);
+      expect(isDocPath("src/app.ts")).toBe(false);
+    });
+
+    it("should treat empty paths as non-doc paths", () => {
+      expect(isDocPath("")).toBe(false);
+      expect(isDocPath(null)).toBe(false);
+    });
+  });
+
+  describe("isConfigPath", () => {
+    it("should match config file extensions", () => {
+      expect(isConfigPath("package.json")).toBe(true);
+      expect(isConfigPath("config.yaml")).toBe(true);
+      expect(isConfigPath("config.yml")).toBe(true);
+      expect(isConfigPath("config.toml")).toBe(true);
+      expect(isConfigPath(".env")).toBe(true);
+    });
+
+    it("should match dotfile config names", () => {
+      expect(isConfigPath(".editorconfig")).toBe(true);
+      expect(isConfigPath(".gitignore")).toBe(true);
+      expect(isConfigPath(".gitattributes")).toBe(true);
+      expect(isConfigPath(".npmrc")).toBe(true);
+      expect(isConfigPath(".prettierrc")).toBe(true);
+    });
+
+    it("should match files with config in the name", () => {
+      expect(isConfigPath("eslint.config.js")).toBe(true);
+      expect(isConfigPath("vitest.config.js")).toBe(true);
+    });
+
+    it("should not match source files", () => {
+      expect(isConfigPath("src/app.js")).toBe(false);
+      expect(isConfigPath("src/app.ts")).toBe(false);
+    });
+
+    it("should treat empty paths as non-config paths", () => {
+      expect(isConfigPath("")).toBe(false);
+      expect(isConfigPath(null)).toBe(false);
     });
   });
 });

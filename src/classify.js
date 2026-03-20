@@ -16,6 +16,8 @@ import { zeroSha, parseHunkHeader } from "./git-parse.js";
  * @property {LineCounts} implementation - Implementation line counts.
  * @property {LineCounts} tests - Test line counts.
  * @property {LineCounts} comments - Comment line counts.
+ * @property {LineCounts} documentation - Documentation line counts.
+ * @property {LineCounts} configuration - Configuration line counts.
  */
 
 /**
@@ -56,6 +58,49 @@ function isTestPath(path) {
  */
 function isJsTsPath(path) {
   return /\.(js|jsx|ts|tsx|mjs|cjs|mts|cts)$/i.test(path || "");
+}
+
+/**
+ * Determines whether a path should be categorized as documentation.
+ *
+ * @param {string|null|undefined} path - File path to classify.
+ * @returns {boolean} True when the path matches documentation conventions.
+ */
+function isDocPath(path) {
+  const lower = (path || "").toLowerCase();
+  if (!lower) {
+    return false;
+  }
+  if (/\.(md|txt|rst|adoc)$/i.test(lower)) {
+    return true;
+  }
+  const basename = lower.split("/").pop() || "";
+  return /^(license|licence|changelog|changes|authors|contributors|readme)$/i.test(basename);
+}
+
+/**
+ * Determines whether a path should be categorized as configuration.
+ *
+ * @param {string|null|undefined} path - File path to classify.
+ * @returns {boolean} True when the path matches configuration conventions.
+ */
+function isConfigPath(path) {
+  const lower = (path || "").toLowerCase();
+  if (!lower) {
+    return false;
+  }
+  if (/\.(json|jsonc|yaml|yml|toml|ini|env|properties)$/i.test(lower)) {
+    return true;
+  }
+  const basename = lower.split("/").pop() || "";
+  if (
+    /^\.(editorconfig|gitignore|gitattributes|npmrc|nvmrc|prettierrc|eslintrc|stylelintrc|babelrc)$/i.test(
+      basename,
+    )
+  ) {
+    return true;
+  }
+  return /\.(config|rc)\.[^/]+$|config\.[^/]+$/i.test(basename);
 }
 
 /**
@@ -129,7 +174,7 @@ function parseCommentsByLine(sourceText, filePath) {
  * @param {number} lineNumber - Line number on the selected side.
  * @param {RawDiffEntry} entry - Raw diff entry for the file.
  * @param {CommentLineProvider} commentLineProvider - Provider for comment line sets.
- * @returns {'implementation'|'tests'|'comments'} Line classification category.
+ * @returns {'implementation'|'tests'|'comments'|'documentation'|'configuration'} Line classification category.
  */
 function classifyLine(side, lineNumber, entry, commentLineProvider) {
   const sidePath = side === "old" ? entry.oldPath : entry.newPath;
@@ -139,6 +184,14 @@ function classifyLine(side, lineNumber, entry, commentLineProvider) {
 
   if (isTestPath(sidePath)) {
     return "tests";
+  }
+
+  if (isDocPath(sidePath)) {
+    return "documentation";
+  }
+
+  if (isConfigPath(sidePath)) {
+    return "configuration";
   }
 
   if (isJsTsPath(sidePath)) {
@@ -167,6 +220,8 @@ function classifyPatchText(patchText, entry, commentLineProvider) {
     implementation: { insertions: 0, deletions: 0 },
     tests: { insertions: 0, deletions: 0 },
     comments: { insertions: 0, deletions: 0 },
+    documentation: { insertions: 0, deletions: 0 },
+    configuration: { insertions: 0, deletions: 0 },
   };
 
   if (!patchText) {
@@ -222,12 +277,16 @@ function classifyPatchText(patchText, entry, commentLineProvider) {
  * @returns {void}
  */
 function addCategoryTotals(target, delta) {
-  target.implementation.insertions += delta.implementation.insertions;
-  target.implementation.deletions += delta.implementation.deletions;
-  target.tests.insertions += delta.tests.insertions;
-  target.tests.deletions += delta.tests.deletions;
-  target.comments.insertions += delta.comments.insertions;
-  target.comments.deletions += delta.comments.deletions;
+  for (const category of [
+    "implementation",
+    "tests",
+    "comments",
+    "documentation",
+    "configuration",
+  ]) {
+    target[category].insertions += delta[category].insertions;
+    target[category].deletions += delta[category].deletions;
+  }
 }
 
 /**
@@ -238,15 +297,18 @@ function addCategoryTotals(target, delta) {
  * @returns {Reconciliation} Reconciliation result.
  */
 function reconcileTotals(total, categories) {
-  const computedInsertions =
-    categories.implementation.insertions +
-    categories.tests.insertions +
-    categories.comments.insertions;
-
-  const computedDeletions =
-    categories.implementation.deletions +
-    categories.tests.deletions +
-    categories.comments.deletions;
+  let computedInsertions = 0;
+  let computedDeletions = 0;
+  for (const category of [
+    "implementation",
+    "tests",
+    "comments",
+    "documentation",
+    "configuration",
+  ]) {
+    computedInsertions += categories[category].insertions;
+    computedDeletions += categories[category].deletions;
+  }
 
   const pass = computedInsertions === total.insertions && computedDeletions === total.deletions;
 
@@ -273,12 +335,16 @@ function createEmptyCategories() {
     implementation: { insertions: 0, deletions: 0 },
     tests: { insertions: 0, deletions: 0 },
     comments: { insertions: 0, deletions: 0 },
+    documentation: { insertions: 0, deletions: 0 },
+    configuration: { insertions: 0, deletions: 0 },
   };
 }
 
 export {
   isTestPath,
   isJsTsPath,
+  isDocPath,
+  isConfigPath,
   parseCommentsByLine,
   classifyPatchText,
   addCategoryTotals,

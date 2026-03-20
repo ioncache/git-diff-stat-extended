@@ -54,6 +54,12 @@ import {
  */
 
 /**
+ * @typedef {Object} FileDetail
+ * @property {string} path - Display path for the file.
+ * @property {CategoryTotals} categories - Per-file category breakdown.
+ */
+
+/**
  * @typedef {Object} GdsxReport
  * @property {string} range - Effective comparison range.
  * @property {string[]} rangeArgs - Git range arguments used for diff commands.
@@ -63,6 +69,7 @@ import {
  * @property {Reconciliation} reconciliation - Reconciliation status and totals.
  * @property {string} shortstatLine - Human-readable shortstat line.
  * @property {SelectedFile[]} selectedFiles - Selected files used for stat computation.
+ * @property {FileDetail[]} fileDetails - Per-file category breakdowns.
  */
 
 /**
@@ -175,6 +182,7 @@ function generateStats(options = {}) {
     selectEntry(entry, includeMatchers, excludeMatchers),
   );
   const categories = createEmptyCategories();
+  const fileDetails = [];
 
   let shortstat = {
     filesChanged: 0,
@@ -298,6 +306,7 @@ function generateStats(options = {}) {
       const patchResult = runGit(patchArgs, { cwd });
       const delta = classifyPatchText(patchResult.stdout, entry, getCommentLines);
       addCategoryTotals(categories, delta);
+      fileDetails.push({ path: diffPath, categories: delta });
     }
   }
 
@@ -327,6 +336,7 @@ function generateStats(options = {}) {
       newPath: entry.newPath,
       path: entry.displayPath,
     })),
+    fileDetails,
   };
 }
 

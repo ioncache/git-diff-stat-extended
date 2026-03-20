@@ -7,17 +7,20 @@ Extended git diff stats for local workflows, exposed as the `gdsx` CLI.
 - implementation
 - tests
 - comments
+- documentation
+- configuration
 
 It enforces strict reconciliation:
 
-- implementation.insertions + tests.insertions + comments.insertions = total.insertions
-- implementation.deletions + tests.deletions + comments.deletions = total.deletions
+- implementation.insertions + tests.insertions + comments.insertions + documentation.insertions + configuration.insertions = total.insertions
+- implementation.deletions + tests.deletions + comments.deletions + documentation.deletions + configuration.deletions = total.deletions
 
 If reconciliation fails, `gdsx` prints diagnostics and exits non-zero.
 
 - [git-diff-stat-extended](#git-diff-stat-extended)
   - [Motivation](#motivation)
   - [Features](#features)
+  - [Category classification](#category-classification)
   - [Installation](#installation)
     - [Option 1: Local development](#option-1-local-development)
     - [Option 2: Global install from local path](#option-2-global-install-from-local-path)
@@ -27,6 +30,9 @@ If reconciliation fails, `gdsx` prints diagnostics and exits non-zero.
     - [Options](#options)
     - [Examples](#examples)
   - [Output](#output)
+    - [Default text mode](#default-text-mode)
+    - [Grouped by extension (`--group-by-extension`)](#grouped-by-extension---group-by-extension)
+    - [JSON mode (`--json`)](#json-mode---json)
   - [Reconciliation guarantees](#reconciliation-guarantees)
   - [Development](#development)
   - [Release](#release)
@@ -46,6 +52,23 @@ If reconciliation fails, `gdsx` prints diagnostics and exits non-zero.
 - Repeatable include/exclude glob filters
 - Text table output with net column and git-style color defaults
 - JSON mode for machine-readable integration
+
+## Category classification
+
+Each changed line is assigned to exactly one category. Classification is
+determined by file path, evaluated in priority order:
+
+| Priority | Category           | Matches                                                                                                                                                                                                                                                                     |
+| -------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1        | **tests**          | Files inside `test/`, `tests/`, or `__tests__/` directories, or filenames containing `.test.*` or `.spec.*`                                                                                                                                                                 |
+| 2        | **documentation**  | `.md`, `.txt`, `.rst`, `.adoc` extensions, or bare filenames `LICENSE`, `LICENCE`, `CHANGELOG`, `CHANGES`, `AUTHORS`, `CONTRIBUTORS`, `README`                                                                                                                              |
+| 3        | **configuration**  | `.json`, `.jsonc`, `.yaml`, `.yml`, `.toml`, `.ini`, `.env`, `.properties` extensions; dotfiles `.editorconfig`, `.gitignore`, `.gitattributes`, `.npmrc`, `.nvmrc`, `.prettierrc`, `.eslintrc`, `.stylelintrc`, `.babelrc`; or filenames matching `*.config.*` or `*.rc.*` |
+| 4        | **comments**       | Lines identified as comments by `@babel/parser` inside JS/TS files (`.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.cjs`, `.mts`, `.cts`)                                                                                                                                           |
+| 5        | **implementation** | Everything else (default)                                                                                                                                                                                                                                                   |
+
+Earlier rules take precedence. A `.test.js` file is always **tests**, never
+**comments** or **implementation**. Comment detection only applies to JS/TS
+files that are not already matched by a higher-priority rule.
 
 ## Installation
 
@@ -90,13 +113,17 @@ gdsx [options]
 
 ### Options
 
-- `--base <ref>` base ref used with `--head`
-- `--head <ref>` head ref used with `--base`
-- `--range <revset>` explicit revset (for example `main...HEAD`)
-- `--include <glob>` include glob (repeatable); for renames/copies, matches against the new path
-- `--exclude <glob>` exclude glob (repeatable); for renames/copies, matches against the new path
-- `--json` structured JSON output
-- `--verbose` extra diagnostics/warnings
+| Flag                    | Type    | Default  | Description                                                                            |
+| ----------------------- | ------- | -------- | -------------------------------------------------------------------------------------- |
+| `--base <ref>`          | string  | `HEAD~1` | Base ref used with `--head`                                                            |
+| `--head <ref>`          | string  | `HEAD`   | Head ref used with `--base`                                                            |
+| `--range <revset>`      | string  |          | Explicit revset (for example `main...HEAD`). Cannot be combined with `--base`/`--head` |
+| `--include <glob>`      | string  |          | Include glob pattern (repeatable). For renames/copies, matches against the new path    |
+| `--exclude <glob>`      | string  |          | Exclude glob pattern (repeatable). For renames/copies, matches against the new path    |
+| `--json`                | boolean | `false`  | Emit structured JSON output                                                            |
+| `--verbose`             | boolean | `false`  | Print warnings and additional diagnostics                                              |
+| `--show-reconciliation` | boolean | `false`  | Show the reconciliation line when it passes (always shown on fail)                     |
+| `--group-by-extension`  | boolean | `false`  | Group the category breakdown by file extension                                         |
 
 ### Examples
 
@@ -122,14 +149,97 @@ gdsx --base main --json
 
 ## Output
 
-Text mode prints:
+### Default text mode
 
-1. git shortstat-style summary line
-2. category table (implementation/tests/comments + net)
-3. reconciliation line (`PASS` or `FAIL`)
-4. diagnostics block on fail
+Prints a category table with a header showing files changed and the comparison range:
 
-JSON mode includes:
+```text
+┌──────────────────────────────────────────────────────┐
+│ 38 files changed  ·  c7729b0..HEAD                   │
+├─────────────────┬────────────┬───────────┬───────────┤
+│ Category        │ Insertions │ Deletions │       Net │
+├─────────────────┼────────────┼───────────┼───────────┤
+│ implementation  │      +1940 │      -771 │     +1169 │
+├─────────────────┼────────────┼───────────┼───────────┤
+│ tests           │       +959 │      -201 │      +758 │
+├─────────────────┼────────────┼───────────┼───────────┤
+│ comments        │       +406 │        -0 │      +406 │
+├─────────────────┼────────────┼───────────┼───────────┤
+│ documentation   │         +0 │        -0 │         0 │
+├─────────────────┼────────────┼───────────┼───────────┤
+│ configuration   │         +0 │        -0 │         0 │
+├─────────────────┼────────────┼───────────┼───────────┤
+│ total           │      +3305 │      -972 │     +2333 │
+└─────────────────┴────────────┴───────────┴───────────┘
+```
+
+When reconciliation fails, a `FAIL` line and diagnostics block are printed and the process exits non-zero. Use `--show-reconciliation` to also display the reconciliation line on pass.
+
+### Grouped by extension (`--group-by-extension`)
+
+Breaks down categories within each file extension group, sorted alphabetically:
+
+```text
+┌───────────────────────────────────────────────────────┐
+│ 38 files changed  ·  c7729b0..HEAD                    │
+├───────────────────┬────────────┬───────────┬──────────┤
+│ Category          │ Insertions │ Deletions │      Net │
+├───────────────────┴────────────┴───────────┴──────────┤
+│ .js (13 files)                                        │
+├───────────────────┬────────────┬───────────┬──────────┤
+│   implementation  │       +880 │      -525 │     +355 │
+│   tests           │       +959 │      -201 │     +758 │
+│   comments        │       +400 │        -0 │     +400 │
+│   documentation   │         +0 │        -0 │        0 │
+│   configuration   │         +0 │        -0 │        0 │
+├───────────────────┴────────────┴───────────┴──────────┤
+│ .json (7 files)                                       │
+├───────────────────┬────────────┬───────────┬──────────┤
+│   implementation  │         +0 │        -0 │        0 │
+│   tests           │         +0 │        -0 │        0 │
+│   comments        │         +0 │        -0 │        0 │
+│   documentation   │         +0 │        -0 │        0 │
+│   configuration   │       +125 │        -9 │     +116 │
+├───────────────────┴────────────┴───────────┴──────────┤
+│ .jsonc (2 files)                                      │
+├───────────────────┬────────────┬───────────┬──────────┤
+│   implementation  │         +0 │        -0 │        0 │
+│   tests           │         +0 │        -0 │        0 │
+│   comments        │         +0 │        -0 │        0 │
+│   documentation   │         +0 │        -0 │        0 │
+│   configuration   │         +8 │        -0 │       +8 │
+├───────────────────┴────────────┴───────────┴──────────┤
+│ .md (8 files)                                         │
+├───────────────────┬────────────┬───────────┬──────────┤
+│   implementation  │         +0 │        -0 │        0 │
+│   tests           │         +0 │        -0 │        0 │
+│   comments        │         +0 │        -0 │        0 │
+│   documentation   │       +877 │       -10 │     +867 │
+│   configuration   │         +0 │        -0 │        0 │
+├───────────────────┴────────────┴───────────┴──────────┤
+│ .mjs (1 file)                                         │
+├───────────────────┬────────────┬───────────┬──────────┤
+│   implementation  │        +25 │        -0 │      +25 │
+│   tests           │         +0 │        -0 │        0 │
+│   comments        │         +6 │        -0 │       +6 │
+│   documentation   │         +0 │        -0 │        0 │
+│   configuration   │         +0 │        -0 │        0 │
+├───────────────────┴────────────┴───────────┴──────────┤
+│ (no extension) (7 files)                              │
+├───────────────────┬────────────┬───────────┬──────────┤
+│   implementation  │        +25 │      -227 │     -202 │
+│   tests           │         +0 │        -0 │        0 │
+│   comments        │         +0 │        -0 │        0 │
+│   documentation   │         +0 │        -0 │        0 │
+│   configuration   │         +0 │        -0 │        0 │
+├───────────────────┼────────────┼───────────┼──────────┤
+│ total             │      +3305 │      -972 │    +2333 │
+└───────────────────┴────────────┴───────────┴──────────┘
+```
+
+### JSON mode (`--json`)
+
+JSON output includes:
 
 - `shortstatLine`
 - `total`
@@ -138,6 +248,7 @@ JSON mode includes:
 - `range`
 - `filters`
 - `selectedFiles`
+- `fileDetails` — per-file category breakdowns
 
 ## Reconciliation guarantees
 
@@ -188,9 +299,9 @@ npm run release
 
 ## Known limitations
 
-- Comment classification is parser-backed for JS/TS-family files only.
-- Non-JS/TS files are categorized as implementation unless they match test rules.
-- For files with syntax parse failures, comment classification for that side may fall back to implementation.
+- The comment parser currently only works for JS/TS-family files
+- Non-JS/TS files are categorized as implementation unless they match test, documentation, or configuration rules
+- For files with syntax parse failures, comment classification for that side may fall back to implementation
 
 ## License
 
