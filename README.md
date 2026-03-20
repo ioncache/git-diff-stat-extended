@@ -306,10 +306,16 @@ Before releasing:
 Then run:
 
 ```bash
-npm run release -- minor
+npm run release -- --bump minor
 ```
 
 Replace `minor` with `major` or `patch` as appropriate.
+
+To preview release notes without publishing:
+
+```bash
+npm run release -- --bump minor --dry-run
+```
 
 ## Known limitations
 

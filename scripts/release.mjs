@@ -1,27 +1,28 @@
 import { writeFileSync, unlinkSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { ConventionalChangelog } from 'conventional-changelog';
+import yargs from 'yargs/yargs';
+import { hideBin } from 'yargs/helpers';
 
-const version = process.argv[2];
-if (!version || !/^(major|minor|patch)$/.test(version)) {
-  console.error('Usage: node scripts/release.mjs <major|minor|patch>');
-  process.exit(1);
-}
+const argv = yargs(hideBin(process.argv))
+  .usage('Usage: $0 --bump <major|minor|patch> [--dry-run]')
+  .option('bump', {
+    alias: 'b',
+    type: 'string',
+    choices: ['major', 'minor', 'patch'],
+    demandOption: true,
+    describe: 'Semver bump type',
+  })
+  .option('dry-run', {
+    type: 'boolean',
+    default: false,
+    describe: 'Preview release notes without releasing',
+  })
+  .strict()
+  .parseSync();
 
-execSync(`npm version ${version} --no-git-tag-version`, { stdio: 'inherit' });
+const { bump, dryRun } = argv;
 
-const { version: newVersion } = JSON.parse(
-  execSync('node -p "JSON.stringify(require(\'./package.json\'))"', {
-    encoding: 'utf8',
-  }),
-);
-const tag = `v${newVersion}`;
-
-execSync(`git add package.json package-lock.json`, { stdio: 'inherit' });
-execSync(`git commit -m "chore: release ${tag}"`, { stdio: 'inherit' });
-execSync(`git tag -a ${tag} -m "${tag}"`, { stdio: 'inherit' });
-
-const notesFile = `.release-notes-${tag}.md`;
 const chunks = [];
 
 for await (const chunk of new ConventionalChangelog().loadPreset('conventionalcommits').write()) {
@@ -38,7 +39,27 @@ if (!notes) {
   notes = 'No notable changes.';
 }
 
+if (dryRun) {
+  console.log(`Dry run for ${bump} release:\n`);
+  console.log(notes);
+  process.exit(0);
+}
+
+execSync(`npm version ${bump} --no-git-tag-version`, { stdio: 'inherit' });
+
+const { version: newVersion } = JSON.parse(
+  execSync('node -p "JSON.stringify(require(\'./package.json\'))"', {
+    encoding: 'utf8',
+  }),
+);
+const tag = `v${newVersion}`;
+const notesFile = `.release-notes-${tag}.md`;
+
 writeFileSync(notesFile, notes);
+
+execSync(`git add package.json package-lock.json`, { stdio: 'inherit' });
+execSync(`git commit -m "chore: release ${tag}"`, { stdio: 'inherit' });
+execSync(`git tag -a ${tag} -m "${tag}"`, { stdio: 'inherit' });
 
 try {
   execSync(`git push origin main --follow-tags`, { stdio: 'inherit' });
