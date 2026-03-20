@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18, 20, 22]
+        node-version: [22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,6 +19,10 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
           cache-dependency-path: package-lock.json
+      - run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@localhost"
+          git config --global init.defaultBranch main
       - run: npm ci
       - run: npm run format:check
       - run: npm run lint
