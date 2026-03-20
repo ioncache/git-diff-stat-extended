@@ -24,9 +24,7 @@ execSync(`git tag -a ${tag} -m "${tag}"`, { stdio: 'inherit' });
 const notesFile = `.release-notes-${tag}.md`;
 const chunks = [];
 
-const changelog = new ConventionalChangelog({ preset: 'conventionalcommits' });
-
-for await (const chunk of changelog.write()) {
+for await (const chunk of new ConventionalChangelog().loadPreset('conventionalcommits').write()) {
   chunks.push(chunk);
 }
 
