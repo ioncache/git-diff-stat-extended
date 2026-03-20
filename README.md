@@ -22,9 +22,6 @@ If reconciliation fails, `gdsx` prints diagnostics and exits non-zero.
   - [Features](#features)
   - [Category classification](#category-classification)
   - [Installation](#installation)
-    - [Option 1: Local development](#option-1-local-development)
-    - [Option 2: Global install from local path](#option-2-global-install-from-local-path)
-    - [Option 3: Global install from GitHub repo](#option-3-global-install-from-github-repo)
   - [Usage](#usage)
     - [Default comparison](#default-comparison)
     - [Options](#options)
@@ -34,8 +31,7 @@ If reconciliation fails, `gdsx` prints diagnostics and exits non-zero.
     - [Grouped by extension (`--group-by-extension`)](#grouped-by-extension---group-by-extension)
     - [JSON mode (`--json`)](#json-mode---json)
   - [Reconciliation guarantees](#reconciliation-guarantees)
-  - [Development](#development)
-  - [Release](#release)
+  - [Contributing](#contributing)
   - [Known limitations](#known-limitations)
   - [License](#license)
 
@@ -72,40 +68,14 @@ files that are not already matched by a higher-priority rule.
 
 ## Installation
 
-### Option 1: Local development
+> **Note:** This package is not yet published to npm. The command below will
+> work once it is available.
 
 ```bash
-cd ~/projects/personal/git-diff-stat-extended
-npm install
-npm run build
-npm link
+npm install -g git-diff-stat-extended
 ```
 
-After making source changes, rebuild before testing:
-
-```bash
-npm run build
-```
-
-Then run from any git repository:
-
-```bash
-gdsx
-```
-
-### Option 2: Global install from local path
-
-```bash
-npm install -g ~/projects/personal/git-diff-stat-extended
-```
-
-### Option 3: Global install from GitHub repo
-
-After pushing to GitHub:
-
-```bash
-npm install -g git+https://github.com/<your-username>/git-diff-stat-extended.git
-```
+For development installation, see [docs/development.md](docs/development.md).
 
 ## Usage
 
@@ -267,61 +237,10 @@ When mismatch occurs:
 
 This makes the tool safe for scripting and CI checks.
 
-## Development
+## Contributing
 
-```bash
-npm install
-npm test
-npm run build
-```
-
-Tests run with Vitest in BDD style and use shared setup via `test/setup.js` configured in `vitest.config.js`.
-
-Build output is emitted to `dist/`:
-
-- runtime files: `dist/gdsx.js`, `dist/gdsx-cli.js`, `dist/gdsx-lib.js`, `dist/git-parse.js`, `dist/classify.js`
-- generated types: `dist/gdsx-lib.d.ts`, `dist/gdsx-lib.d.ts.map`
-
-Type declarations are generated from JSDoc using `tsc -p tsconfig.typings.json`.
-
-## Release
-
-The release workflow is automated via `npm run release`, which bumps the
-version, generates release notes from Conventional Commits, pushes the tag, and
-creates a GitHub release.
-
-This project uses [Conventional Commits](https://www.conventionalcommits.org/)
-for commit messages. A `commit-msg` hook enforces the format via commitlint.
-
-Common prefixes:
-
-- `feat:` — new feature
-- `fix:` — bug fix
-- `chore:` — maintenance (deps, config, CI)
-- `docs:` — documentation only
-- `refactor:` — code change that neither fixes a bug nor adds a feature
-- `feat!:` or `BREAKING CHANGE:` footer — breaking change
-
-Before releasing:
-
-1. Run `npm test` and `npm run build`
-2. Verify CLI wiring: `node ./dist/gdsx.js --help`
-3. Validate publish payload: `npm pack --dry-run`
-4. Commit any outstanding changes
-
-Then run:
-
-```bash
-npm run release -- --bump minor
-```
-
-Replace `minor` with `major` or `patch` as appropriate.
-
-To preview release notes without publishing:
-
-```bash
-npm run release -- --bump minor --dry-run
-```
+See [docs/development.md](docs/development.md) for setup, testing, and release
+instructions.
 
 ## Known limitations
 
