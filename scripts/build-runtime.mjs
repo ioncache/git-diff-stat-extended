@@ -21,6 +21,7 @@ function copyFile(sourcePath, destinationPath) {
 copyFile(path.join(projectRoot, 'src', 'git-parse.js'), path.join(distDir, 'git-parse.js'));
 copyFile(path.join(projectRoot, 'src', 'classify.js'), path.join(distDir, 'classify.js'));
 copyFile(path.join(projectRoot, 'src', 'gdsx-lib.js'), path.join(distDir, 'gdsx-lib.js'));
+copyFile(path.join(projectRoot, 'src', 'gdsx-render.js'), path.join(distDir, 'gdsx-render.js'));
 copyFile(path.join(projectRoot, 'src', 'gdsx-cli.js'), path.join(distDir, 'gdsx-cli.js'));
 
 const entrySource = fs.readFileSync(path.join(projectRoot, 'gdsx'), 'utf8');

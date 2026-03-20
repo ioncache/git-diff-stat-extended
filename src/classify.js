@@ -6,6 +6,13 @@ import { zeroSha, parseHunkHeader } from './git-parse.js';
  */
 
 /**
+ * @typedef {'implementation'|'tests'|'comments'|'documentation'|'configuration'} Category
+ */
+
+/** @type {Category[]} */
+const CATEGORY_NAMES = ['implementation', 'tests', 'comments', 'documentation', 'configuration'];
+
+/**
  * @typedef {Object} LineCounts
  * @property {number} insertions - Number of inserted lines.
  * @property {number} deletions - Number of deleted lines.
@@ -277,13 +284,7 @@ function classifyPatchText(patchText, entry, commentLineProvider) {
  * @returns {void}
  */
 function addCategoryTotals(target, delta) {
-  for (const category of [
-    'implementation',
-    'tests',
-    'comments',
-    'documentation',
-    'configuration',
-  ]) {
+  for (const category of CATEGORY_NAMES) {
     target[category].insertions += delta[category].insertions;
     target[category].deletions += delta[category].deletions;
   }
@@ -299,13 +300,7 @@ function addCategoryTotals(target, delta) {
 function reconcileTotals(total, categories) {
   let computedInsertions = 0;
   let computedDeletions = 0;
-  for (const category of [
-    'implementation',
-    'tests',
-    'comments',
-    'documentation',
-    'configuration',
-  ]) {
+  for (const category of CATEGORY_NAMES) {
     computedInsertions += categories[category].insertions;
     computedDeletions += categories[category].deletions;
   }
@@ -341,6 +336,7 @@ function createEmptyCategories() {
 }
 
 export {
+  CATEGORY_NAMES,
   isTestPath,
   isJsTsPath,
   isDocPath,
