@@ -8,7 +8,7 @@ export default [
   },
   js.configs.recommended,
   {
-    files: ['**/*.js', 'gdsx'],
+    files: ['**/*.js', '**/*.mjs', 'gdsx'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',

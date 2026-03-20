@@ -55,7 +55,7 @@
     "lint:md:fix": "markdownlint-cli2 --fix",
     "prepare": "husky",
     "prepack": "npm run build",
-    "release": "npm version minor && git push origin main --follow-tags && gh release create v$(node -p 'require(\"./package.json\").version') --generate-notes",
+    "release": "node scripts/release.mjs",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "test": "vitest run",
@@ -82,8 +82,11 @@
     "yargs": "^18.0.0"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
     "@eslint/js": "^10.0.1",
     "@vitest/coverage-v8": "^4.1.0",
+    "conventional-changelog": "^7.2.0",
     "eslint": "^10.0.3",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.4.0",
