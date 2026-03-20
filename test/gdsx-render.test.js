@@ -1,6 +1,29 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRepo } from './setup.js';
 import { createReport, executeCliWithMain } from './helpers.js';
+import { renderTextOutput, renderGroupedTextOutput } from '../src/gdsx-render.js';
+
+/**
+ * Captures console.log and console.error output during a callback.
+ *
+ * @param {() => void} fn - Callback to execute with captured output.
+ * @returns {{ logs: string[], errors: string[] }} Captured output.
+ */
+function captureConsole(fn) {
+  const logs = [];
+  const errors = [];
+  const previousLog = console.log;
+  const previousError = console.error;
+  console.log = (...args) => logs.push(args.map(String).join(' '));
+  console.error = (...args) => errors.push(args.map(String).join(' '));
+  try {
+    fn();
+  } finally {
+    console.log = previousLog;
+    console.error = previousError;
+  }
+  return { logs, errors };
+}
 
 describe('gdsx-render', () => {
   describe('color resolution', () => {
@@ -151,9 +174,8 @@ describe('gdsx-render', () => {
   });
 
   describe('renderTextOutput', () => {
-    it('should render plural file labels and negative net values in text output', async () => {
+    it('should render plural file labels and negative net values in text output', () => {
       // Arrange
-      const repo = createRepo();
       const report = createReport({
         total: {
           filesChanged: 2,
@@ -174,87 +196,51 @@ describe('gdsx-render', () => {
         },
       });
 
-      vi.resetModules();
-      vi.doMock('../src/gdsx-lib.js', () => ({
-        generateStats: () => report,
-      }));
-      const { main } = await import('../src/gdsx-cli.js');
-
       // Act
-      const result = executeCliWithMain(main, {
-        argv: ['HEAD~1..HEAD'],
-        cwd: repo,
+      const { logs } = captureConsole(() => {
+        renderTextOutput(report, { showReconciliation: false });
       });
-      const output = result.logs.join('\n');
+      const output = logs.join('\n');
 
       // Assert
       expect(output).toContain('2 files changed');
       expect(output).toContain('·');
       expect(output).toContain('-2');
       expect(output).not.toContain('reconciliation:');
-
-      // Revert
-      vi.doUnmock('../src/gdsx-lib.js');
-      vi.resetModules();
     });
   });
 
   describe('renderReconciliation', () => {
-    it('should show reconciliation line on pass when --show-reconciliation is set', async () => {
+    it('should show reconciliation line on pass when showReconciliation is true', () => {
       // Arrange
-      const repo = createRepo();
-
-      vi.resetModules();
-      vi.doMock('../src/gdsx-lib.js', () => ({
-        generateStats: () => createReport(),
-      }));
-      const { main } = await import('../src/gdsx-cli.js');
+      const report = createReport();
 
       // Act
-      const result = executeCliWithMain(main, {
-        argv: ['HEAD~1..HEAD', '--show-reconciliation'],
-        cwd: repo,
+      const { logs } = captureConsole(() => {
+        renderTextOutput(report, { showReconciliation: true });
       });
-      const output = result.logs.join('\n');
+      const output = logs.join('\n');
 
       // Assert
-      expect(result.exitCode).toBe(0);
       expect(output).toContain('PASS reconciliation:');
-
-      // Revert
-      vi.doUnmock('../src/gdsx-lib.js');
-      vi.resetModules();
     });
 
-    it('should hide reconciliation line on pass by default', async () => {
+    it('should hide reconciliation line on pass by default', () => {
       // Arrange
-      const repo = createRepo();
-
-      vi.resetModules();
-      vi.doMock('../src/gdsx-lib.js', () => ({
-        generateStats: () => createReport(),
-      }));
-      const { main } = await import('../src/gdsx-cli.js');
+      const report = createReport();
 
       // Act
-      const result = executeCliWithMain(main, {
-        argv: ['HEAD~1..HEAD'],
-        cwd: repo,
+      const { logs } = captureConsole(() => {
+        renderTextOutput(report, { showReconciliation: false });
       });
-      const output = result.logs.join('\n');
+      const output = logs.join('\n');
 
       // Assert
-      expect(result.exitCode).toBe(0);
       expect(output).not.toContain('reconciliation:');
-
-      // Revert
-      vi.doUnmock('../src/gdsx-lib.js');
-      vi.resetModules();
     });
 
-    it('should always show reconciliation line on fail regardless of flag', async () => {
+    it('should always show reconciliation line on fail regardless of flag', () => {
       // Arrange
-      const repo = createRepo();
       const failReport = createReport({
         categories: {
           implementation: { insertions: 1, deletions: 0 },
@@ -270,33 +256,20 @@ describe('gdsx-render', () => {
         },
       });
 
-      vi.resetModules();
-      vi.doMock('../src/gdsx-lib.js', () => ({
-        generateStats: () => failReport,
-      }));
-      const { main } = await import('../src/gdsx-cli.js');
-
       // Act
-      const result = executeCliWithMain(main, {
-        argv: ['HEAD~1..HEAD'],
-        cwd: repo,
+      const { logs } = captureConsole(() => {
+        renderTextOutput(failReport, { showReconciliation: false });
       });
-      const output = result.logs.join('\n');
+      const output = logs.join('\n');
 
       // Assert
-      expect(result.exitCode).toBe(1);
       expect(output).toContain('FAIL reconciliation:');
-
-      // Revert
-      vi.doUnmock('../src/gdsx-lib.js');
-      vi.resetModules();
     });
   });
 
   describe('renderGroupedTextOutput', () => {
-    it('should render grouped output by extension when --group-by-extension is set', async () => {
+    it('should render grouped output by extension', () => {
       // Arrange
-      const repo = createRepo();
       const report = createReport({
         total: { filesChanged: 3, insertions: 5, deletions: 2 },
         categories: {
@@ -345,36 +318,23 @@ describe('gdsx-render', () => {
         },
       ];
 
-      vi.resetModules();
-      vi.doMock('../src/gdsx-lib.js', () => ({
-        generateStats: () => report,
-      }));
-      const { main } = await import('../src/gdsx-cli.js');
-
       // Act
-      const result = executeCliWithMain(main, {
-        argv: ['HEAD~1..HEAD', '--group-by-extension'],
-        cwd: repo,
+      const { logs } = captureConsole(() => {
+        renderGroupedTextOutput(report, { showReconciliation: false });
       });
-      const output = result.logs.join('\n');
+      const output = logs.join('\n');
 
       // Assert
-      expect(result.exitCode).toBe(0);
       expect(output).toContain('.js');
       expect(output).toContain('3 files');
       expect(output).toContain('implementation');
       expect(output).toContain('tests');
       expect(output).toContain('comments');
       expect(output).toContain('total');
-
-      // Revert
-      vi.doUnmock('../src/gdsx-lib.js');
-      vi.resetModules();
     });
 
-    it('should group multiple extensions separately in grouped output', async () => {
+    it('should group multiple extensions separately in grouped output', () => {
       // Arrange
-      const repo = createRepo();
       const report = createReport({
         total: { filesChanged: 2, insertions: 3, deletions: 1 },
         categories: {
@@ -413,27 +373,16 @@ describe('gdsx-render', () => {
         },
       ];
 
-      vi.resetModules();
-      vi.doMock('../src/gdsx-lib.js', () => ({
-        generateStats: () => report,
-      }));
-      const { main } = await import('../src/gdsx-cli.js');
-
       // Act
-      const result = executeCliWithMain(main, {
-        argv: ['HEAD~1..HEAD', '--group-by-extension'],
-        cwd: repo,
+      const { logs } = captureConsole(() => {
+        renderGroupedTextOutput(report, { showReconciliation: false });
       });
-      const output = result.logs.join('\n');
+      const output = logs.join('\n');
 
       // Assert
       expect(output).toContain('.js');
       expect(output).toContain('.css');
       expect(output).toContain('1 file');
-
-      // Revert
-      vi.doUnmock('../src/gdsx-lib.js');
-      vi.resetModules();
     });
   });
 });
