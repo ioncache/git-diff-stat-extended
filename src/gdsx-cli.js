@@ -82,7 +82,6 @@ import { generateStats } from './gdsx-lib.js';
  * @property {string[]} [include] - Include glob patterns.
  * @property {string[]} [exclude] - Exclude glob patterns.
  * @property {boolean} json - Whether to emit JSON output.
- * @property {boolean} verbose - Whether to emit extra diagnostics.
  * @property {boolean} showReconciliation - Whether to display reconciliation on pass.
  * @property {boolean} groupByExtension - Whether to group output by file extension.
  */
@@ -470,11 +469,6 @@ function parseArgv() {
       default: false,
       description: 'Emit JSON output',
     })
-    .option('verbose', {
-      type: 'boolean',
-      default: false,
-      description: 'Print warnings and additional diagnostics',
-    })
     .option('show-reconciliation', {
       type: 'boolean',
       default: false,
@@ -510,7 +504,6 @@ function main() {
       range: argv.range,
       include: argv.include,
       exclude: argv.exclude,
-      verbose: argv.verbose,
     });
 
     if (argv.json) {

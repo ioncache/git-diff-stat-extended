@@ -42,7 +42,6 @@ import {
  * @property {string|string[]} [include] - Include glob pattern or list of patterns.
  * @property {string|string[]} [exclude] - Exclude glob pattern or list of patterns.
  * @property {string} [cwd] - Working directory used to execute git.
- * @property {boolean} [verbose=false] - Enables warning output for recoverable parse failures.
  */
 
 /**
@@ -265,10 +264,8 @@ function generateStats(options = {}) {
         try {
           commentLines = parseCommentsByLine(sourceText, path);
         } catch (error) {
-          if (options.verbose) {
-            const message = error && error.message ? error.message : String(error);
-            process.stderr.write(`warning: ${message}\n`);
-          }
+          const message = error && error.message ? error.message : String(error);
+          process.stderr.write(`warning: ${message}\n`);
           commentLines = new Set();
         }
       }

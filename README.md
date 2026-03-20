@@ -121,7 +121,6 @@ gdsx [options]
 | `--include <glob>`      | string  |          | Include glob pattern (repeatable). For renames/copies, matches against the new path    |
 | `--exclude <glob>`      | string  |          | Exclude glob pattern (repeatable). For renames/copies, matches against the new path    |
 | `--json`                | boolean | `false`  | Emit structured JSON output                                                            |
-| `--verbose`             | boolean | `false`  | Print warnings and additional diagnostics                                              |
 | `--show-reconciliation` | boolean | `false`  | Show the reconciliation line when it passes (always shown on fail)                     |
 | `--group-by-extension`  | boolean | `false`  | Group the category breakdown by file extension                                         |
 

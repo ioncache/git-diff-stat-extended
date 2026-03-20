@@ -226,7 +226,7 @@ describe('gdsx-lib', () => {
     expect(report.reconciliation.pass).toBe(true);
   });
 
-  it('should continue with a warning when comment parsing fails in verbose mode', () => {
+  it('should emit a warning to stderr when comment parsing fails', () => {
     // Arrange
     const repo = createRepo();
     writeFile(repo, 'src/broken.ts', 'export const value = 1;\n');
@@ -249,7 +249,6 @@ describe('gdsx-lib', () => {
         cwd: repo,
         base: 'HEAD~1',
         head: 'HEAD',
-        verbose: true,
       });
     } finally {
       process.stderr.write = previousStderrWrite;
