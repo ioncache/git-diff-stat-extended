@@ -26,7 +26,7 @@ const chunks = [];
 
 const changelog = new ConventionalChangelog({ preset: 'conventionalcommits' });
 
-for await (const chunk of changelog) {
+for await (const chunk of changelog.write()) {
   chunks.push(chunk);
 }
 
