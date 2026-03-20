@@ -1,5 +1,14 @@
 # Development
 
+## Table of Contents
+
+- [Development](#development)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Testing](#testing)
+  - [Build output](#build-output)
+  - [Release](#release)
+
 ## Installation
 
 ```bash
