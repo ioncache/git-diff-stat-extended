@@ -47,7 +47,7 @@ If reconciliation fails, `gdsx` prints diagnostics and exits non-zero.
 - Uses git CLI as source of truth (`--raw -z`, `--shortstat`, and patch hunks)
 - Handles add/modify/delete/rename/copy
 - Safe path handling via NUL-delimited parsing and literal pathspecs
-- Parser-backed JS/TS comment detection using `@babel/parser`
+- Comment detection for JS/TS (via `@babel/parser`) and 30+ other languages (regex-based)
 - Repeatable include/exclude glob filters
 - Text table output with net column and git-style color defaults
 - JSON mode for machine-readable integration
@@ -62,12 +62,24 @@ determined by file path, evaluated in priority order:
 | 1        | **tests**          | Files inside `test/`, `tests/`, or `__tests__/` directories, or filenames containing `.test.*` or `.spec.*`                                                                     |
 | 2        | **documentation**  | `.md`, `.txt`, `.rst`, `.adoc` extensions, or bare filenames `LICENSE`, `LICENCE`, `CHANGELOG`, `CHANGES`, `AUTHORS`, `CONTRIBUTORS`, `README`                                  |
 | 3        | **configuration**  | `.json`, `.jsonc`, `.yaml`, `.yml`, `.toml`, `.ini`, `.env`, `.properties` extensions; any dotfile (basename starting with `.`); or filenames matching `*.config.*` or `*.rc.*` |
-| 4        | **comments**       | Lines identified as comments by `@babel/parser` inside JS/TS files (`.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.cjs`, `.mts`, `.cts`)                                               |
+| 4        | **comments**       | Lines identified as comments in supported languages (see below)                                                                                                                 |
 | 5        | **implementation** | Everything else (default)                                                                                                                                                       |
 
 Earlier rules take precedence. A `.test.js` file is always **tests**, never
-**comments** or **implementation**. Comment detection only applies to JS/TS
-files that are not already matched by a higher-priority rule.
+**comments** or **implementation**. Comment detection only applies to files
+that are not already matched by a higher-priority rule.
+
+### Comment detection languages
+
+| Parser  | Extensions                                                                                     | Comment syntax                   |
+| ------- | ---------------------------------------------------------------------------------------------- | -------------------------------- |
+| Babel   | `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.cjs`, `.mts`, `.cts`                                   | Full AST-based parsing           |
+| Generic | `.c`, `.cpp`, `.h`, `.hpp`, `.cs`, `.go`, `.java`, `.rs`, `.swift`, `.kt`, `.scala`, `.groovy` | `//` line, `/* */` block         |
+| Generic | `.py`, `.sh`, `.bash`, `.rb`, `.pl`, `.r`                                                      | `#` line                         |
+| Generic | `.html`, `.htm`, `.xml`, `.svg`, `.vue`                                                        | `<!-- -->` block                 |
+| Generic | `.css`, `.scss`, `.less`                                                                       | `/* */` block                    |
+| Generic | `.sql`, `.lua`, `.hs`                                                                          | `--` line                        |
+| Generic | `.php`                                                                                         | `//` and `#` line, `/* */` block |
 
 ## Installation
 
@@ -253,9 +265,11 @@ instructions.
 
 ## Known limitations
 
-- The comment parser currently only works for JS/TS-family files
-- Non-JS/TS files are categorized as implementation unless they match test, documentation, or configuration rules
-- For files with syntax parse failures, comment classification for that side may fall back to implementation
+- For unsupported file extensions, all non-test/doc/config lines are categorized as implementation
+- The generic (non-JS/TS) comment parser uses regex-based scanning with basic string literal awareness; edge cases in complex string/template interpolation may cause misclassification
+- Python docstrings (`"""..."""`/`'''...'''`) are string literals, not language-level comments, and are classified as implementation
+- Nested block comments (e.g. Haskell `{- {- -} -}`) are not supported
+- For files with syntax parse failures, comment classification for that side falls back to implementation
 
 ## License
 

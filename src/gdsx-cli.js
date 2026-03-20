@@ -1,12 +1,12 @@
-import yargs from 'yargs/yargs';
-import { hideBin } from 'yargs/helpers';
-import { generateStats } from './gdsx-lib.js';
+import yargs from "yargs/yargs";
+import { hideBin } from "yargs/helpers";
+import { generateStats } from "./gdsx-lib.js";
 import {
   renderTextOutput,
   renderGroupedTextOutput,
   renderJsonOutput,
   formatErrorMessage,
-} from './gdsx-render.js';
+} from "./gdsx-render.js";
 
 /**
  * @typedef {Object} CliTotals
@@ -93,33 +93,33 @@ import {
  */
 function parseArgv() {
   const argv = yargs(hideBin(process.argv))
-    .scriptName('gdsx')
-    .usage('$0 [options] [<git-diff-args>...]')
-    .parserConfiguration({ 'unknown-options-as-args': true })
-    .option('include', {
-      type: 'string',
+    .scriptName("gdsx")
+    .usage("$0 [options] [<git-diff-args>...]")
+    .parserConfiguration({ "unknown-options-as-args": true })
+    .option("include", {
+      type: "string",
       array: true,
-      description: 'Include glob pattern, repeatable',
+      description: "Include glob pattern, repeatable",
     })
-    .option('exclude', {
-      type: 'string',
+    .option("exclude", {
+      type: "string",
       array: true,
-      description: 'Exclude glob pattern, repeatable',
+      description: "Exclude glob pattern, repeatable",
     })
-    .option('json', {
-      type: 'boolean',
+    .option("json", {
+      type: "boolean",
       default: false,
-      description: 'Emit JSON output',
+      description: "Emit JSON output",
     })
-    .option('show-reconciliation', {
-      type: 'boolean',
+    .option("show-reconciliation", {
+      type: "boolean",
       default: false,
-      description: 'Show reconciliation line when it passes',
+      description: "Show reconciliation line when it passes",
     })
-    .option('group-by-extension', {
-      type: 'boolean',
+    .option("group-by-extension", {
+      type: "boolean",
       default: false,
-      description: 'Group category breakdown by file extension',
+      description: "Group category breakdown by file extension",
     })
     .help()
     .parseSync();

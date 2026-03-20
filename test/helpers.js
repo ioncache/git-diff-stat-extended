@@ -6,7 +6,7 @@
  */
 function createReport(overrides = {}) {
   const report = {
-    shortstatLine: '1 file changed, 1 insertion(+), 1 deletion(-)',
+    shortstatLine: "1 file changed, 1 insertion(+), 1 deletion(-)",
     total: {
       filesChanged: 1,
       insertions: 1,
@@ -24,7 +24,7 @@ function createReport(overrides = {}) {
       expected: { insertions: 1, deletions: 1 },
       computed: { insertions: 1, deletions: 1 },
     },
-    range: 'HEAD~1..HEAD',
+    range: "HEAD~1..HEAD",
     filters: { include: [], exclude: [] },
     selectedFiles: [],
     fileDetails: [],
@@ -69,17 +69,17 @@ function executeCliWithMain(cliMain, options) {
   const errors = [];
 
   try {
-    process.argv = ['node', 'gdsx', ...argv];
+    process.argv = ["node", "gdsx", ...argv];
     process.exitCode = 0;
     if (cwd) {
       process.chdir(cwd);
     }
 
     console.log = (...args) => {
-      logs.push(args.map(String).join(' '));
+      logs.push(args.map(String).join(" "));
     };
     console.error = (...args) => {
-      errors.push(args.map(String).join(' '));
+      errors.push(args.map(String).join(" "));
     };
 
     cliMain();

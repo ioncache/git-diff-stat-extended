@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { createRepo } from './setup.js';
-import { createReport, executeCliWithMain } from './helpers.js';
-import { renderTextOutput, renderGroupedTextOutput } from '../src/gdsx-render.js';
+import { describe, it, expect, vi } from "vitest";
+import { createRepo } from "./setup.js";
+import { createReport, executeCliWithMain } from "./helpers.js";
+import { renderTextOutput, renderGroupedTextOutput } from "../src/gdsx-render.js";
 
 /**
  * Captures console.log and console.error output during a callback.
@@ -14,8 +14,8 @@ function captureConsole(fn) {
   const errors = [];
   const previousLog = console.log;
   const previousError = console.error;
-  console.log = (...args) => logs.push(args.map(String).join(' '));
-  console.error = (...args) => errors.push(args.map(String).join(' '));
+  console.log = (...args) => logs.push(args.map(String).join(" "));
+  console.error = (...args) => errors.push(args.map(String).join(" "));
   try {
     fn();
   } finally {
@@ -25,31 +25,31 @@ function captureConsole(fn) {
   return { logs, errors };
 }
 
-describe('gdsx-render', () => {
-  describe('color resolution', () => {
-    it('should disable color output when NO_COLOR is set', async () => {
+describe("gdsx-render", () => {
+  describe("color resolution", () => {
+    it("should disable color output when NO_COLOR is set", async () => {
       // Arrange
       const repo = createRepo();
       const previousNoColor = process.env.NO_COLOR;
       const previousForceColor = process.env.FORCE_COLOR;
 
-      process.env.NO_COLOR = '1';
+      process.env.NO_COLOR = "1";
       delete process.env.FORCE_COLOR;
 
       vi.resetModules();
-      vi.doMock('../src/gdsx-lib.js', () => ({
+      vi.doMock("../src/gdsx-lib.js", () => ({
         generateStats: () => createReport(),
       }));
 
       // Act
-      const { main } = await import('../src/gdsx-cli.js');
+      const { main } = await import("../src/gdsx-cli.js");
       const result = executeCliWithMain(main, {
-        argv: ['HEAD~1..HEAD'],
+        argv: ["HEAD~1..HEAD"],
         cwd: repo,
       });
 
       // Assert
-      expect(result.logs.join('\n')).not.toContain('\u001b[');
+      expect(result.logs.join("\n")).not.toContain("\u001b[");
 
       // Revert
       if (previousNoColor === undefined) {
@@ -62,11 +62,11 @@ describe('gdsx-render', () => {
       } else {
         process.env.FORCE_COLOR = previousForceColor;
       }
-      vi.doUnmock('../src/gdsx-lib.js');
+      vi.doUnmock("../src/gdsx-lib.js");
       vi.resetModules();
     });
 
-    it('should honor git color.ui settings when env color flags are absent', async () => {
+    it("should honor git color.ui settings when env color flags are absent", async () => {
       // Arrange
       const repo = createRepo();
       const previousNoColor = process.env.NO_COLOR;
@@ -76,47 +76,47 @@ describe('gdsx-render', () => {
 
       // Act
       vi.resetModules();
-      vi.doMock('node:child_process', () => ({
+      vi.doMock("node:child_process", () => ({
         spawnSync: (command, args) => {
-          if (command === 'git' && args[0] === 'config') {
-            return { status: 0, stdout: 'always\n', stderr: '' };
+          if (command === "git" && args[0] === "config") {
+            return { status: 0, stdout: "always\n", stderr: "" };
           }
-          return { status: 0, stdout: '', stderr: '' };
+          return { status: 0, stdout: "", stderr: "" };
         },
       }));
-      vi.doMock('../src/gdsx-lib.js', () => ({
+      vi.doMock("../src/gdsx-lib.js", () => ({
         generateStats: () => createReport(),
       }));
-      const { main: alwaysMain } = await import('../src/gdsx-cli.js');
+      const { main: alwaysMain } = await import("../src/gdsx-cli.js");
       const alwaysResult = executeCliWithMain(alwaysMain, {
-        argv: ['HEAD~1..HEAD'],
+        argv: ["HEAD~1..HEAD"],
         cwd: repo,
       });
 
-      vi.doUnmock('node:child_process');
-      vi.doUnmock('../src/gdsx-lib.js');
+      vi.doUnmock("node:child_process");
+      vi.doUnmock("../src/gdsx-lib.js");
       vi.resetModules();
 
-      vi.doMock('node:child_process', () => ({
+      vi.doMock("node:child_process", () => ({
         spawnSync: (command, args) => {
-          if (command === 'git' && args[0] === 'config') {
-            return { status: 0, stdout: 'never\n', stderr: '' };
+          if (command === "git" && args[0] === "config") {
+            return { status: 0, stdout: "never\n", stderr: "" };
           }
-          return { status: 0, stdout: '', stderr: '' };
+          return { status: 0, stdout: "", stderr: "" };
         },
       }));
-      vi.doMock('../src/gdsx-lib.js', () => ({
+      vi.doMock("../src/gdsx-lib.js", () => ({
         generateStats: () => createReport(),
       }));
-      const { main: neverMain } = await import('../src/gdsx-cli.js');
+      const { main: neverMain } = await import("../src/gdsx-cli.js");
       const neverResult = executeCliWithMain(neverMain, {
-        argv: ['HEAD~1..HEAD'],
+        argv: ["HEAD~1..HEAD"],
         cwd: repo,
       });
 
       // Assert
-      expect(alwaysResult.logs.join('\n')).toContain('\u001b[');
-      expect(neverResult.logs.join('\n')).not.toContain('\u001b[');
+      expect(alwaysResult.logs.join("\n")).toContain("\u001b[");
+      expect(neverResult.logs.join("\n")).not.toContain("\u001b[");
 
       // Revert
       if (previousNoColor === undefined) {
@@ -129,33 +129,33 @@ describe('gdsx-render', () => {
       } else {
         process.env.FORCE_COLOR = previousForceColor;
       }
-      vi.doUnmock('node:child_process');
-      vi.doUnmock('../src/gdsx-lib.js');
+      vi.doUnmock("node:child_process");
+      vi.doUnmock("../src/gdsx-lib.js");
       vi.resetModules();
     });
 
-    it('should honor FORCE_COLOR when NO_COLOR is not set', async () => {
+    it("should honor FORCE_COLOR when NO_COLOR is not set", async () => {
       // Arrange
       const repo = createRepo();
       const previousNoColor = process.env.NO_COLOR;
       const previousForceColor = process.env.FORCE_COLOR;
       delete process.env.NO_COLOR;
-      process.env.FORCE_COLOR = '0';
+      process.env.FORCE_COLOR = "0";
 
       vi.resetModules();
-      vi.doMock('../src/gdsx-lib.js', () => ({
+      vi.doMock("../src/gdsx-lib.js", () => ({
         generateStats: () => createReport(),
       }));
 
       // Act
-      const { main } = await import('../src/gdsx-cli.js');
+      const { main } = await import("../src/gdsx-cli.js");
       const result = executeCliWithMain(main, {
-        argv: ['HEAD~1..HEAD'],
+        argv: ["HEAD~1..HEAD"],
         cwd: repo,
       });
 
       // Assert
-      expect(result.logs.join('\n')).not.toContain('\u001b[');
+      expect(result.logs.join("\n")).not.toContain("\u001b[");
 
       // Revert
       if (previousNoColor === undefined) {
@@ -168,13 +168,13 @@ describe('gdsx-render', () => {
       } else {
         process.env.FORCE_COLOR = previousForceColor;
       }
-      vi.doUnmock('../src/gdsx-lib.js');
+      vi.doUnmock("../src/gdsx-lib.js");
       vi.resetModules();
     });
   });
 
-  describe('renderTextOutput', () => {
-    it('should render plural file labels and negative net values in text output', () => {
+  describe("renderTextOutput", () => {
+    it("should render plural file labels and negative net values in text output", () => {
       // Arrange
       const report = createReport({
         total: {
@@ -200,18 +200,18 @@ describe('gdsx-render', () => {
       const { logs } = captureConsole(() => {
         renderTextOutput(report, { showReconciliation: false });
       });
-      const output = logs.join('\n');
+      const output = logs.join("\n");
 
       // Assert
-      expect(output).toContain('2 files changed');
-      expect(output).toContain('·');
-      expect(output).toContain('-2');
-      expect(output).not.toContain('reconciliation:');
+      expect(output).toContain("2 files changed");
+      expect(output).toContain("·");
+      expect(output).toContain("-2");
+      expect(output).not.toContain("reconciliation:");
     });
   });
 
-  describe('renderReconciliation', () => {
-    it('should show reconciliation line on pass when showReconciliation is true', () => {
+  describe("renderReconciliation", () => {
+    it("should show reconciliation line on pass when showReconciliation is true", () => {
       // Arrange
       const report = createReport();
 
@@ -219,13 +219,13 @@ describe('gdsx-render', () => {
       const { logs } = captureConsole(() => {
         renderTextOutput(report, { showReconciliation: true });
       });
-      const output = logs.join('\n');
+      const output = logs.join("\n");
 
       // Assert
-      expect(output).toContain('PASS reconciliation:');
+      expect(output).toContain("PASS reconciliation:");
     });
 
-    it('should hide reconciliation line on pass by default', () => {
+    it("should hide reconciliation line on pass by default", () => {
       // Arrange
       const report = createReport();
 
@@ -233,13 +233,13 @@ describe('gdsx-render', () => {
       const { logs } = captureConsole(() => {
         renderTextOutput(report, { showReconciliation: false });
       });
-      const output = logs.join('\n');
+      const output = logs.join("\n");
 
       // Assert
-      expect(output).not.toContain('reconciliation:');
+      expect(output).not.toContain("reconciliation:");
     });
 
-    it('should always show reconciliation line on fail regardless of flag', () => {
+    it("should always show reconciliation line on fail regardless of flag", () => {
       // Arrange
       const failReport = createReport({
         categories: {
@@ -260,15 +260,15 @@ describe('gdsx-render', () => {
       const { logs } = captureConsole(() => {
         renderTextOutput(failReport, { showReconciliation: false });
       });
-      const output = logs.join('\n');
+      const output = logs.join("\n");
 
       // Assert
-      expect(output).toContain('FAIL reconciliation:');
+      expect(output).toContain("FAIL reconciliation:");
     });
   });
 
-  describe('renderGroupedTextOutput', () => {
-    it('should render grouped output by extension', () => {
+  describe("renderGroupedTextOutput", () => {
+    it("should render grouped output by extension", () => {
       // Arrange
       const report = createReport({
         total: { filesChanged: 3, insertions: 5, deletions: 2 },
@@ -287,7 +287,7 @@ describe('gdsx-render', () => {
       });
       report.fileDetails = [
         {
-          path: 'src/app.js',
+          path: "src/app.js",
           categories: {
             implementation: { insertions: 2, deletions: 1 },
             tests: { insertions: 0, deletions: 0 },
@@ -297,7 +297,7 @@ describe('gdsx-render', () => {
           },
         },
         {
-          path: 'src/utils.js',
+          path: "src/utils.js",
           categories: {
             implementation: { insertions: 1, deletions: 0 },
             tests: { insertions: 0, deletions: 0 },
@@ -307,7 +307,7 @@ describe('gdsx-render', () => {
           },
         },
         {
-          path: 'tests/app.test.js',
+          path: "tests/app.test.js",
           categories: {
             implementation: { insertions: 0, deletions: 0 },
             tests: { insertions: 2, deletions: 1 },
@@ -322,18 +322,18 @@ describe('gdsx-render', () => {
       const { logs } = captureConsole(() => {
         renderGroupedTextOutput(report, { showReconciliation: false });
       });
-      const output = logs.join('\n');
+      const output = logs.join("\n");
 
       // Assert
-      expect(output).toContain('.js');
-      expect(output).toContain('3 files');
-      expect(output).toContain('implementation');
-      expect(output).toContain('tests');
-      expect(output).toContain('comments');
-      expect(output).toContain('total');
+      expect(output).toContain(".js");
+      expect(output).toContain("3 files");
+      expect(output).toContain("implementation");
+      expect(output).toContain("tests");
+      expect(output).toContain("comments");
+      expect(output).toContain("total");
     });
 
-    it('should group multiple extensions separately in grouped output', () => {
+    it("should group multiple extensions separately in grouped output", () => {
       // Arrange
       const report = createReport({
         total: { filesChanged: 2, insertions: 3, deletions: 1 },
@@ -352,7 +352,7 @@ describe('gdsx-render', () => {
       });
       report.fileDetails = [
         {
-          path: 'src/app.js',
+          path: "src/app.js",
           categories: {
             implementation: { insertions: 2, deletions: 1 },
             tests: { insertions: 0, deletions: 0 },
@@ -362,7 +362,7 @@ describe('gdsx-render', () => {
           },
         },
         {
-          path: 'src/style.css',
+          path: "src/style.css",
           categories: {
             implementation: { insertions: 0, deletions: 0 },
             tests: { insertions: 0, deletions: 0 },
@@ -377,12 +377,12 @@ describe('gdsx-render', () => {
       const { logs } = captureConsole(() => {
         renderGroupedTextOutput(report, { showReconciliation: false });
       });
-      const output = logs.join('\n');
+      const output = logs.join("\n");
 
       // Assert
-      expect(output).toContain('.js');
-      expect(output).toContain('.css');
-      expect(output).toContain('1 file');
+      expect(output).toContain(".js");
+      expect(output).toContain(".css");
+      expect(output).toContain("1 file");
     });
   });
 });

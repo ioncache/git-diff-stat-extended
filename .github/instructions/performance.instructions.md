@@ -1,5 +1,5 @@
 ---
-applyTo: '**'
+applyTo: "**"
 ---
 
 # Performance Guidelines
@@ -21,8 +21,8 @@ function startWatcher(target) {
   const onChange = () => {
     /* ... */
   };
-  target.addEventListener('change', onChange);
-  return () => target.removeEventListener('change', onChange);
+  target.addEventListener("change", onChange);
+  return () => target.removeEventListener("change", onChange);
 }
 
 // Good: Cleanup timers
@@ -51,7 +51,7 @@ function computeDigest(input) {
 
 ```javascript
 async function loadAnalyzer() {
-  const { analyze } = await import('./analyzer.js');
+  const { analyze } = await import("./analyzer.js");
   return analyze;
 }
 ```

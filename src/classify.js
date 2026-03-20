@@ -1,5 +1,5 @@
-import * as babelParser from '@babel/parser';
-import { parseHunkHeader } from './git-parse.js';
+import * as babelParser from "@babel/parser";
+import { parseHunkHeader } from "./git-parse.js";
 
 /**
  * @typedef {import('./git-parse.js').RawDiffEntry} RawDiffEntry
@@ -10,7 +10,7 @@ import { parseHunkHeader } from './git-parse.js';
  */
 
 /** @type {Category[]} */
-const CATEGORY_NAMES = ['implementation', 'tests', 'comments', 'documentation', 'configuration'];
+const CATEGORY_NAMES = ["implementation", "tests", "comments", "documentation", "configuration"];
 
 /**
  * @typedef {Object} LineCounts
@@ -48,7 +48,7 @@ const CATEGORY_NAMES = ['implementation', 'tests', 'comments', 'documentation', 
  * @returns {boolean} True when the path matches test conventions.
  */
 function isTestPath(path) {
-  const lower = (path || '').toLowerCase();
+  const lower = (path || "").toLowerCase();
   if (!lower) {
     return false;
   }
@@ -64,7 +64,7 @@ function isTestPath(path) {
  * @returns {boolean} True for JS or TS family extensions.
  */
 function isJsTsPath(path) {
-  return /\.(js|jsx|ts|tsx|mjs|cjs|mts|cts)$/i.test(path || '');
+  return /\.(js|jsx|ts|tsx|mjs|cjs|mts|cts)$/i.test(path || "");
 }
 
 /**
@@ -74,14 +74,14 @@ function isJsTsPath(path) {
  * @returns {boolean} True when the path matches documentation conventions.
  */
 function isDocPath(path) {
-  const lower = (path || '').toLowerCase();
+  const lower = (path || "").toLowerCase();
   if (!lower) {
     return false;
   }
   if (/\.(md|txt|rst|adoc)$/i.test(lower)) {
     return true;
   }
-  const basename = lower.split('/').pop() || '';
+  const basename = lower.split("/").pop() || "";
   return /^(license|licence|changelog|changes|authors|contributors|readme)$/i.test(basename);
 }
 
@@ -92,48 +92,208 @@ function isDocPath(path) {
  * @returns {boolean} True when the path matches configuration conventions.
  */
 function isConfigPath(path) {
-  const lower = (path || '').toLowerCase();
+  const lower = (path || "").toLowerCase();
   if (!lower) {
     return false;
   }
   if (/\.(json|jsonc|yaml|yml|toml|ini|env|properties)$/i.test(lower)) {
     return true;
   }
-  const basename = lower.split('/').pop() || '';
-  if (basename.startsWith('.')) {
+  const basename = lower.split("/").pop() || "";
+  if (basename.startsWith(".")) {
     return true;
   }
   return /\.(config|rc)\.[^/]+$|config\.[^/]+$/i.test(basename);
 }
 
 /**
- * Parses source text and returns the set of line numbers that contain comments.
+ * @typedef {Object} CommentSyntax
+ * @property {string[]} line - Line comment prefixes (e.g. ['//'] or ['#']).
+ * @property {[string, string]|null} block - Block comment open/close pair, or null.
+ */
+
+/** @type {Map<string, CommentSyntax>} */
+const COMMENT_SYNTAX = new Map([
+  // C-style: line + block
+  ...["c", "cpp", "h", "hpp", "cs", "go", "java", "rs", "swift", "kt", "scala", "groovy"].map(
+    (ext) => [ext, { line: ["//"], block: ["/*", "*/"] }],
+  ),
+
+  // Hash line only
+  ...["py", "sh", "bash", "rb", "pl", "r"].map((ext) => [ext, { line: ["#"], block: null }]),
+
+  // HTML/XML block only
+  ...["html", "htm", "xml", "svg", "vue"].map((ext) => [ext, { line: [], block: ["<!--", "-->"] }]),
+
+  // CSS block only
+  ...["css", "scss", "less"].map((ext) => [ext, { line: [], block: ["/*", "*/"] }]),
+
+  // Double-dash line
+  ...["sql", "lua", "hs"].map((ext) => [ext, { line: ["--"], block: null }]),
+
+  // PHP: multiple line prefixes + block
+  ["php", { line: ["//", "#"], block: ["/*", "*/"] }],
+]);
+
+/**
+ * Returns the comment syntax rules for a file path, or null if unsupported.
+ *
+ * @param {string|null|undefined} filePath - File path to look up.
+ * @returns {CommentSyntax|null} Syntax rules, or null when the extension is not recognized.
+ *
+ * @example
+ * getCommentSyntax('main.py')   // { line: ['#'], block: null }
+ * getCommentSyntax('app.js')    // null (JS/TS uses Babel parser)
+ * getCommentSyntax('data.csv')  // null
+ */
+function getCommentSyntax(filePath) {
+  if (!filePath) {
+    return null;
+  }
+  const ext = (filePath.split(".").pop() || "").toLowerCase();
+  return COMMENT_SYNTAX.get(ext) || null;
+}
+
+/**
+ * Checks whether a character is inside an active string literal.
+ *
+ * Tracks single-quote, double-quote, and backtick boundaries with backslash
+ * escape awareness. Returns updated state.
+ *
+ * @param {string} ch - Current character.
+ * @param {string} prev - Previous character.
+ * @param {string} stringChar - Active quote character, or empty string.
+ * @returns {string} Updated stringChar state.
+ */
+function updateStringState(ch, prev, stringChar) {
+  if (stringChar) {
+    if (ch === stringChar && prev !== "\\") {
+      return "";
+    }
+    return stringChar;
+  }
+  if ((ch === '"' || ch === "'" || ch === "`") && prev !== "\\") {
+    return ch;
+  }
+  return "";
+}
+
+/**
+ * Finds the position of a line comment prefix outside of string literals.
+ *
+ * @param {string} line - Source line to scan.
+ * @param {string[]} prefixes - Line comment prefixes to search for.
+ * @returns {number} Index of the first unquoted prefix, or -1.
+ */
+function findLineComment(line, prefixes) {
+  if (prefixes.length === 0) {
+    return -1;
+  }
+  let stringChar = "";
+  for (let i = 0; i < line.length; i += 1) {
+    stringChar = updateStringState(line[i], i > 0 ? line[i - 1] : "", stringChar);
+    if (stringChar) {
+      continue;
+    }
+    for (const prefix of prefixes) {
+      if (line.startsWith(prefix, i)) {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
+/**
+ * Parses source text using regex-based comment syntax rules and returns the
+ * set of 1-indexed line numbers that contain comments.
+ *
+ * @param {string} sourceText - File content to parse.
+ * @param {CommentSyntax} syntax - Comment syntax rules for the language.
+ * @returns {Set<number>} Set of comment line numbers.
+ *
+ * @example
+ * const syntax = { line: ['#'], block: null };
+ * parseCommentsByLineGeneric('x = 1\n# note\ny = 2', syntax)
+ * // => Set {2}
+ */
+function parseCommentsByLineGeneric(sourceText, syntax) {
+  const commentsByLine = new Set();
+  const lines = sourceText.split("\n");
+  let inBlock = false;
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const lineText = lines[i];
+    const lineNumber = i + 1;
+
+    if (inBlock) {
+      commentsByLine.add(lineNumber);
+      if (syntax.block && lineText.includes(syntax.block[1])) {
+        inBlock = false;
+      }
+      continue;
+    }
+
+    if (syntax.block) {
+      let stringChar = "";
+      let foundBlock = false;
+      for (let j = 0; j < lineText.length; j += 1) {
+        stringChar = updateStringState(lineText[j], j > 0 ? lineText[j - 1] : "", stringChar);
+        if (stringChar) {
+          continue;
+        }
+        if (lineText.startsWith(syntax.block[0], j)) {
+          commentsByLine.add(lineNumber);
+          const afterOpen = j + syntax.block[0].length;
+          const rest = lineText.slice(afterOpen);
+          if (!rest.includes(syntax.block[1])) {
+            inBlock = true;
+          }
+          foundBlock = true;
+          break;
+        }
+      }
+      if (foundBlock) {
+        continue;
+      }
+    }
+
+    if (findLineComment(lineText, syntax.line) !== -1) {
+      commentsByLine.add(lineNumber);
+    }
+  }
+
+  return commentsByLine;
+}
+
+/**
+ * Parses JS/TS source text using Babel and returns comment line numbers.
  *
  * @param {string} sourceText - File content to parse.
  * @param {string} filePath - Path used to infer parser plugins.
  * @returns {Set<number>} Set of comment line numbers.
  * @throws {Error} When the source cannot be parsed by supported plugin sets.
  */
-function parseCommentsByLine(sourceText, filePath) {
+function parseCommentsByLineBabel(sourceText, filePath) {
   const commentsByLine = new Set();
 
-  const ext = (filePath.split('.').pop() || '').toLowerCase();
-  const isTs = ext === 'ts' || ext === 'tsx' || ext === 'mts' || ext === 'cts';
-  const isJsxLike = ext === 'jsx' || ext === 'tsx';
+  const ext = (filePath.split(".").pop() || "").toLowerCase();
+  const isTs = ext === "ts" || ext === "tsx" || ext === "mts" || ext === "cts";
+  const isJsxLike = ext === "jsx" || ext === "tsx";
 
   const pluginSets = [];
   if (isTs && isJsxLike) {
-    pluginSets.push(['typescript', 'jsx']);
-    pluginSets.push(['typescript']);
+    pluginSets.push(["typescript", "jsx"]);
+    pluginSets.push(["typescript"]);
   } else if (isTs) {
-    pluginSets.push(['typescript']);
-    pluginSets.push(['typescript', 'jsx']);
+    pluginSets.push(["typescript"]);
+    pluginSets.push(["typescript", "jsx"]);
   } else if (isJsxLike) {
-    pluginSets.push(['jsx']);
+    pluginSets.push(["jsx"]);
     pluginSets.push([]);
   } else {
     pluginSets.push([]);
-    pluginSets.push(['jsx']);
+    pluginSets.push(["jsx"]);
   }
 
   let ast = null;
@@ -142,7 +302,7 @@ function parseCommentsByLine(sourceText, filePath) {
   for (const plugins of pluginSets) {
     try {
       ast = babelParser.parse(sourceText, {
-        sourceType: 'unambiguous',
+        sourceType: "unambiguous",
         plugins,
         errorRecovery: true,
       });
@@ -153,7 +313,7 @@ function parseCommentsByLine(sourceText, filePath) {
   }
 
   if (!ast) {
-    const reason = lastError ? lastError.message : 'unknown parser error';
+    const reason = lastError ? lastError.message : "unknown parser error";
     throw new Error(`Unable to parse ${filePath} for comments: ${reason}`);
   }
 
@@ -171,6 +331,34 @@ function parseCommentsByLine(sourceText, filePath) {
 }
 
 /**
+ * Parses source text and returns the set of line numbers that contain comments.
+ *
+ * Dispatches to Babel for JS/TS files and to a regex-based scanner for other
+ * supported languages.
+ *
+ * @param {string} sourceText - File content to parse.
+ * @param {string} filePath - Path used to select the parsing strategy.
+ * @returns {Set<number>} Set of comment line numbers.
+ * @throws {Error} When the file type is unsupported or parsing fails.
+ *
+ * @example
+ * parseCommentsByLine('// hello', 'src/app.js')  // Babel path
+ * parseCommentsByLine('# hello', 'main.py')      // Generic path
+ */
+function parseCommentsByLine(sourceText, filePath) {
+  if (isJsTsPath(filePath)) {
+    return parseCommentsByLineBabel(sourceText, filePath);
+  }
+
+  const syntax = getCommentSyntax(filePath);
+  if (syntax) {
+    return parseCommentsByLineGeneric(sourceText, syntax);
+  }
+
+  throw new Error(`No comment parser available for ${filePath}`);
+}
+
+/**
  * Classifies one changed line into implementation, tests, or comments.
  *
  * @param {'old'|'new'} side - Side of the diff line being classified.
@@ -180,32 +368,32 @@ function parseCommentsByLine(sourceText, filePath) {
  * @returns {'implementation'|'tests'|'comments'|'documentation'|'configuration'} Line classification category.
  */
 function classifyLine(side, lineNumber, entry, commentLineProvider) {
-  const sidePath = side === 'old' ? entry.oldPath : entry.newPath;
+  const sidePath = side === "old" ? entry.oldPath : entry.newPath;
   if (!sidePath) {
-    return 'implementation';
+    return "implementation";
   }
 
   if (isTestPath(sidePath)) {
-    return 'tests';
+    return "tests";
   }
 
   if (isDocPath(sidePath)) {
-    return 'documentation';
+    return "documentation";
   }
 
   if (isConfigPath(sidePath)) {
-    return 'configuration';
+    return "configuration";
   }
 
-  if (isJsTsPath(sidePath)) {
-    const sideSha = side === 'old' ? entry.oldSha : entry.newSha;
+  if (isJsTsPath(sidePath) || getCommentSyntax(sidePath)) {
+    const sideSha = side === "old" ? entry.oldSha : entry.newSha;
     const commentLines = commentLineProvider(sideSha, sidePath);
     if (commentLines.has(lineNumber)) {
-      return 'comments';
+      return "comments";
     }
   }
 
-  return 'implementation';
+  return "implementation";
 }
 
 /**
@@ -229,7 +417,7 @@ function classifyPatchText(patchText, entry, commentLineProvider) {
     return result;
   }
 
-  const lines = patchText.split('\n');
+  const lines = patchText.split("\n");
   let oldLine = 0;
   let newLine = 0;
   let inHunk = false;
@@ -247,21 +435,21 @@ function classifyPatchText(patchText, entry, commentLineProvider) {
       continue;
     }
 
-    if (line.startsWith('+') && !line.startsWith('+++')) {
-      const category = classifyLine('new', newLine, entry, commentLineProvider);
+    if (line.startsWith("+") && !line.startsWith("+++")) {
+      const category = classifyLine("new", newLine, entry, commentLineProvider);
       result[category].insertions += 1;
       newLine += 1;
       continue;
     }
 
-    if (line.startsWith('-') && !line.startsWith('---')) {
-      const category = classifyLine('old', oldLine, entry, commentLineProvider);
+    if (line.startsWith("-") && !line.startsWith("---")) {
+      const category = classifyLine("old", oldLine, entry, commentLineProvider);
       result[category].deletions += 1;
       oldLine += 1;
       continue;
     }
 
-    if (line.startsWith(' ')) {
+    if (line.startsWith(" ")) {
       oldLine += 1;
       newLine += 1;
     }
@@ -335,7 +523,9 @@ export {
   isJsTsPath,
   isDocPath,
   isConfigPath,
+  getCommentSyntax,
   parseCommentsByLine,
+  parseCommentsByLineGeneric,
   classifyPatchText,
   addCategoryTotals,
   reconcileTotals,

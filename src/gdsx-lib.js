@@ -1,20 +1,20 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import picomatch from 'picomatch';
+import fs from "node:fs";
+import path from "node:path";
+import picomatch from "picomatch";
 import {
   runGit,
   zeroSha,
   parseRawDiffZ,
   parseShortstat,
   formatShortstatLine,
-} from './git-parse.js';
+} from "./git-parse.js";
 import {
   parseCommentsByLine,
   classifyPatchText,
   addCategoryTotals,
   reconcileTotals,
   createEmptyCategories,
-} from './classify.js';
+} from "./classify.js";
 
 /**
  * @typedef {import('./git-parse.js').RawDiffEntry} RawDiffEntry
@@ -154,13 +154,13 @@ function generateStats(options = {}) {
   const includeMatchers = buildMatchers(includePatterns);
   const excludeMatchers = buildMatchers(excludePatterns);
   const cwd = options.cwd || process.cwd();
-  const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+  const EMPTY_TREE_SHA = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 
-  let rangeArgs = options.gitArgs && options.gitArgs.length > 0 ? [...options.gitArgs] : ['HEAD'];
-  let effectiveRange = rangeArgs.join(' ') || 'HEAD';
+  let rangeArgs = options.gitArgs && options.gitArgs.length > 0 ? [...options.gitArgs] : ["HEAD"];
+  let effectiveRange = rangeArgs.join(" ") || "HEAD";
 
-  if (rangeArgs.length === 1 && rangeArgs[0] === 'HEAD') {
-    const hasAnyCommit = runGit(['rev-parse', '--verify', '--quiet', 'HEAD'], {
+  if (rangeArgs.length === 1 && rangeArgs[0] === "HEAD") {
+    const hasAnyCommit = runGit(["rev-parse", "--verify", "--quiet", "HEAD"], {
       cwd,
       allowFailure: true,
     });
@@ -171,7 +171,7 @@ function generateStats(options = {}) {
     }
   }
 
-  const rawArgs = ['diff', '--raw', '-z', '--find-renames', '--no-ext-diff', ...rangeArgs];
+  const rawArgs = ["diff", "--raw", "-z", "--find-renames", "--no-ext-diff", ...rangeArgs];
   const rawResult = runGit(rawArgs, { cwd });
   const rawEntries = parseRawDiffZ(rawResult.stdout);
 
@@ -185,13 +185,13 @@ function generateStats(options = {}) {
     filesChanged: 0,
     insertions: 0,
     deletions: 0,
-    raw: '',
+    raw: "",
   };
 
   if (selectedEntries.length > 0) {
     const pathspecSet = new Set();
     for (const entry of selectedEntries) {
-      if (entry.status === 'R' || entry.status === 'C') {
+      if (entry.status === "R" || entry.status === "C") {
         if (entry.oldPath) {
           pathspecSet.add(`:(literal)${entry.oldPath}`);
         }
@@ -207,12 +207,12 @@ function generateStats(options = {}) {
     }
 
     const shortstatArgs = [
-      'diff',
-      '--shortstat',
-      '--find-renames',
-      '--no-ext-diff',
+      "diff",
+      "--shortstat",
+      "--find-renames",
+      "--no-ext-diff",
       ...rangeArgs,
-      '--',
+      "--",
       ...pathspecSet,
     ];
     const shortstatResult = runGit(shortstatArgs, { cwd });
@@ -231,7 +231,7 @@ function generateStats(options = {}) {
     function getBlobText(sha, filePath) {
       if (zeroSha(sha)) {
         try {
-          return fs.readFileSync(path.join(cwd, filePath), 'utf8');
+          return fs.readFileSync(path.join(cwd, filePath), "utf8");
         } catch {
           return null;
         }
@@ -242,7 +242,7 @@ function generateStats(options = {}) {
         return blobTextCache.get(sha);
       }
 
-      const result = runGit(['cat-file', '-p', sha], {
+      const result = runGit(["cat-file", "-p", sha], {
         cwd,
         allowFailure: true,
       });
@@ -288,7 +288,7 @@ function generateStats(options = {}) {
       }
 
       const patchPathspecs = [];
-      if ((entry.status === 'R' || entry.status === 'C') && entry.oldPath && entry.newPath) {
+      if ((entry.status === "R" || entry.status === "C") && entry.oldPath && entry.newPath) {
         patchPathspecs.push(`:(literal)${entry.oldPath}`);
         patchPathspecs.push(`:(literal)${entry.newPath}`);
       } else {
@@ -296,13 +296,13 @@ function generateStats(options = {}) {
       }
 
       const patchArgs = [
-        'diff',
-        '--no-color',
-        '--unified=0',
-        '--find-renames',
-        '--no-ext-diff',
+        "diff",
+        "--no-color",
+        "--unified=0",
+        "--find-renames",
+        "--no-ext-diff",
         ...rangeArgs,
-        '--',
+        "--",
         ...patchPathspecs,
       ];
 

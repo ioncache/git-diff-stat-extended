@@ -1,8 +1,8 @@
-import { spawnSync } from 'node:child_process';
-import path from 'node:path';
-import pc from 'picocolors';
-import Table from 'cli-table3';
-import { CATEGORY_NAMES } from './classify.js';
+import { spawnSync } from "node:child_process";
+import path from "node:path";
+import pc from "picocolors";
+import Table from "cli-table3";
+import { CATEGORY_NAMES } from "./classify.js";
 
 /**
  * @typedef {import('./gdsx-cli.js').CliReport} CliReport
@@ -17,8 +17,8 @@ import { CATEGORY_NAMES } from './classify.js';
  * @returns {'always'|'never'|string|null} Git color setting or null when unavailable.
  */
 function readGitColorUiSetting() {
-  const result = spawnSync('git', ['config', '--get', 'color.ui'], {
-    encoding: 'utf8',
+  const result = spawnSync("git", ["config", "--get", "color.ui"], {
+    encoding: "utf8",
   });
 
   /* istanbul ignore next -- depends on local git availability/config outside deterministic unit-test control */
@@ -26,7 +26,7 @@ function readGitColorUiSetting() {
     return null;
   }
 
-  const value = (result.stdout || '').trim().toLowerCase();
+  const value = (result.stdout || "").trim().toLowerCase();
   return value || null;
 }
 
@@ -42,14 +42,14 @@ function colorsForOutput() {
 
   const forced = process.env.FORCE_COLOR;
   if (forced !== undefined) {
-    return pc.createColors(forced !== '0');
+    return pc.createColors(forced !== "0");
   }
 
   const gitColorUi = readGitColorUiSetting();
-  if (gitColorUi === 'always') {
+  if (gitColorUi === "always") {
     return pc.createColors(true);
   }
-  if (gitColorUi === 'never') {
+  if (gitColorUi === "never") {
     return pc.createColors(false);
   }
 
@@ -113,7 +113,7 @@ function fmtNet(value) {
  * @returns {string} Formatted header label.
  */
 function renderHeaderLabel(total, range) {
-  const filesWord = total.filesChanged === 1 ? 'file' : 'files';
+  const filesWord = total.filesChanged === 1 ? "file" : "files";
   return `${total.filesChanged} ${filesWord} changed  ·  ${range}`;
 }
 
@@ -129,7 +129,7 @@ function renderReconciliation(report, options) {
   const showReconciliationLine = !reconciliation.pass || options.showReconciliation;
 
   if (showReconciliationLine) {
-    const statusLabel = reconciliation.pass ? colors.green('PASS') : colors.red('FAIL');
+    const statusLabel = reconciliation.pass ? colors.green("PASS") : colors.red("FAIL");
     console.log(
       `${statusLabel} reconciliation: expected ${fmtSigned(reconciliation.expected.insertions, reconciliation.expected.deletions)}, ` +
         `computed ${fmtSigned(reconciliation.computed.insertions, reconciliation.computed.deletions)}`,
@@ -137,7 +137,7 @@ function renderReconciliation(report, options) {
   }
 
   if (!reconciliation.pass) {
-    console.error('Diagnostics:');
+    console.error("Diagnostics:");
     for (const name of CATEGORY_NAMES) {
       console.error(
         `  ${name}: ${fmtSigned(categories[name].insertions, categories[name].deletions)}`,
@@ -167,12 +167,12 @@ function renderTextOutput(report, options) {
   }));
 
   const table = new Table({
-    colAligns: ['left', 'right', 'right', 'right'],
+    colAligns: ["left", "right", "right", "right"],
     style: { head: [], border: [] },
   });
 
   table.push([{ colSpan: 4, content: renderHeaderLabel(total, report.range) }]);
-  table.push(['Category', 'Insertions', 'Deletions', 'Net']);
+  table.push(["Category", "Insertions", "Deletions", "Net"]);
 
   for (const row of rows) {
     const net = row.insertions - row.deletions;
@@ -185,7 +185,7 @@ function renderTextOutput(report, options) {
   }
 
   table.push([
-    colors.bold('total'),
+    colors.bold("total"),
     colors.bold(fmtInsertion(total.insertions)),
     colors.bold(fmtDeletion(total.deletions)),
     colors.bold(fmtNet(total.insertions - total.deletions)),
@@ -205,7 +205,7 @@ function groupFileDetailsByExtension(fileDetails) {
   const groups = new Map();
 
   for (const file of fileDetails) {
-    const ext = path.extname(file.path) || '(no extension)';
+    const ext = path.extname(file.path) || "(no extension)";
     if (!groups.has(ext)) {
       groups.set(ext, {
         extension: ext,
@@ -229,8 +229,8 @@ function groupFileDetailsByExtension(fileDetails) {
   }
 
   return [...groups.values()].sort((a, b) => {
-    if (a.extension === '(no extension)') return 1;
-    if (b.extension === '(no extension)') return -1;
+    if (a.extension === "(no extension)") return 1;
+    if (b.extension === "(no extension)") return -1;
     return a.extension.localeCompare(b.extension);
   });
 }
@@ -243,18 +243,18 @@ function groupFileDetailsByExtension(fileDetails) {
  * @returns {string} Table string with sub-row borders stripped.
  */
 function stripSubRowBorders(tableString, rowTypes) {
-  const lines = tableString.split('\n');
+  const lines = tableString.split("\n");
   const result = [];
   let contentIndex = -1;
 
   for (const line of lines) {
-    if (line.startsWith('\u2502') || line.startsWith('│')) {
+    if (line.startsWith("\u2502") || line.startsWith("│")) {
       contentIndex++;
       result.push(line);
-    } else if (line.startsWith('\u251C') || line.startsWith('├')) {
+    } else if (line.startsWith("\u251C") || line.startsWith("├")) {
       const prevType = rowTypes[contentIndex];
       const nextType = rowTypes[contentIndex + 1];
-      if (prevType === 'sub' && nextType === 'sub') {
+      if (prevType === "sub" && nextType === "sub") {
         continue;
       }
       result.push(line);
@@ -263,7 +263,7 @@ function stripSubRowBorders(tableString, rowTypes) {
     }
   }
 
-  return result.join('\n');
+  return result.join("\n");
 }
 
 /**
@@ -281,40 +281,40 @@ function renderGroupedTextOutput(report, options) {
   const extensionGroups = groupFileDetailsByExtension(report.fileDetails);
 
   const table = new Table({
-    colAligns: ['left', 'right', 'right', 'right'],
+    colAligns: ["left", "right", "right", "right"],
     style: { head: [], border: [] },
   });
 
   const rowTypes = [];
 
   table.push([{ colSpan: 4, content: renderHeaderLabel(total, report.range) }]);
-  rowTypes.push('title');
-  table.push(['Category', 'Insertions', 'Deletions', 'Net']);
-  rowTypes.push('header');
+  rowTypes.push("title");
+  table.push(["Category", "Insertions", "Deletions", "Net"]);
+  rowTypes.push("header");
 
   for (const group of extensionGroups) {
-    const filesWord = group.fileCount === 1 ? 'file' : 'files';
+    const filesWord = group.fileCount === 1 ? "file" : "files";
     table.push([
       { colSpan: 4, content: colors.bold(`${group.extension} (${group.fileCount} ${filesWord})`) },
     ]);
-    rowTypes.push('group');
+    rowTypes.push("group");
 
     for (const cat of CATEGORY_NAMES) {
       const ins = group.categories[cat].insertions;
       const del = group.categories[cat].deletions;
       const net = ins - del;
       table.push([`  ${cat}`, fmtInsertion(ins), fmtDeletion(del), fmtNet(net)]);
-      rowTypes.push('sub');
+      rowTypes.push("sub");
     }
   }
 
   table.push([
-    colors.bold('total'),
+    colors.bold("total"),
     colors.bold(fmtInsertion(total.insertions)),
     colors.bold(fmtDeletion(total.deletions)),
     colors.bold(fmtNet(total.insertions - total.deletions)),
   ]);
-  rowTypes.push('total');
+  rowTypes.push("total");
 
   console.log(stripSubRowBorders(table.toString(), rowTypes));
   renderReconciliation(report, options);
