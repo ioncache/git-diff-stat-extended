@@ -24,6 +24,7 @@ If reconciliation fails, `gdsx` prints diagnostics and exits non-zero.
   - [Motivation](#motivation)
   - [Features](#features)
   - [Category classification](#category-classification)
+    - [Comment detection languages](#comment-detection-languages)
   - [Installation](#installation)
   - [Usage](#usage)
     - [Default comparison](#default-comparison)
@@ -82,9 +83,6 @@ that are not already matched by a higher-priority rule.
 | Generic | `.php`                                                                                         | `//` and `#` line, `/* */` block |
 
 ## Installation
-
-> **Note:** This package is not yet published to npm. The command below will
-> work once it is available.
 
 ```bash
 npm install -g git-diff-stat-extended
