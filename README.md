@@ -1,5 +1,7 @@
 # git-diff-stat-extended
 
+[![Node CI](https://github.com/ioncache/git-diff-stat-extended/actions/workflows/ci.yml/badge.svg)](https://github.com/ioncache/git-diff-stat-extended/actions/workflows/ci.yml)
+
 Extended git diff stats for local workflows, exposed as the `gdsx` CLI.
 
 `gdsx` preserves authoritative git totals and adds a categorized breakdown:
