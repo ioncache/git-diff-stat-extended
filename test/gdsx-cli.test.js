@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 
 import { main as runCliMain } from "../src/gdsx-cli.js";
 import { writeFile, commitAll, createRepo } from "./setup.js";
@@ -82,14 +82,8 @@ describe("gdsx-cli", () => {
       },
     });
 
-    vi.resetModules();
-    vi.doMock("../src/gdsx-lib.js", () => ({
-      generateStats: () => mockedReport,
-    }));
-    const { main } = await import("../src/gdsx-cli.js");
-
     // Act
-    const result = executeCliWithMain(main, {
+    const result = executeCliWithMain(() => runCliMain({ generateStats: () => mockedReport }), {
       argv: ["HEAD~1..HEAD"],
       cwd: repo,
     });
@@ -98,36 +92,28 @@ describe("gdsx-cli", () => {
     expect(result.exitCode).toBe(1);
     expect(result.logs.join("\n")).toContain("reconciliation:");
     expect(result.errors.join("\n")).toContain("Diagnostics:");
-
-    // Revert
-    vi.doUnmock("../src/gdsx-lib.js");
-    vi.resetModules();
   });
 
   it("should stringify non-Error throw values in CLI error handling", async () => {
     // Arrange
     const repo = createRepo();
 
-    vi.resetModules();
-    vi.doMock("../src/gdsx-lib.js", () => ({
-      generateStats: () => {
-        throw 42;
-      },
-    }));
-    const { main } = await import("../src/gdsx-cli.js");
-
     // Act
-    const result = executeCliWithMain(main, {
-      argv: ["HEAD~1..HEAD"],
-      cwd: repo,
-    });
+    const result = executeCliWithMain(
+      () =>
+        runCliMain({
+          generateStats: () => {
+            throw 42;
+          },
+        }),
+      {
+        argv: ["HEAD~1..HEAD"],
+        cwd: repo,
+      },
+    );
 
     // Assert
     expect(result.exitCode).toBe(1);
     expect(result.errors.join("\n")).toContain("gdsx error: 42");
-
-    // Revert
-    vi.doUnmock("../src/gdsx-lib.js");
-    vi.resetModules();
   });
 });

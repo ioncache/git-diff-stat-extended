@@ -133,12 +133,13 @@ function parseArgv() {
 /**
  * Entrypoint for CLI execution.
  *
+ * @param {{ generateStats?: typeof generateStats }} [dependencies] - Optional injected dependencies for tests.
  * @returns {void}
  */
-function main() {
+function main(dependencies = {}) {
   try {
     const argv = parseArgv();
-    const report = generateStats({
+    const report = (dependencies.generateStats || generateStats)({
       gitArgs: argv.gitArgs,
       include: argv.include,
       exclude: argv.exclude,
