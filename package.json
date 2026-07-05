@@ -33,7 +33,8 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=18",
+    "npm": ">=11"
   },
   "repository": {
     "type": "git",

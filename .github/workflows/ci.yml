@@ -26,6 +26,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
           cache-dependency-path: package-lock.json
+      - run: npm install --global npm@11
       - run: |
           git config --global user.name "CI"
           git config --global user.email "ci@localhost"
